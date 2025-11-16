@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
-  <title>Хоррор-лабиринт: охотник vs жертва</title>
+  <title>Перелётные снайпера — AWP арена</title>
   <style>
     * { box-sizing: border-box; }
     body {
@@ -80,7 +80,7 @@
       border: 1px solid #111827;
       background: #020617;
     }
-    #doomCanvas {
+    #arena {
       width: 800px;
       height: 450px;
       cursor: crosshair;
@@ -110,62 +110,60 @@
 </head>
 <body>
 <header>
-  <h1>Хоррор-лабиринт: Охотник против Жертвы</h1>
+  <h1>Перелётные снайпера — AWP псевдо-3D арена</h1>
   <p class="subtitle">
-    Псевдо-3D как старый Doom: мышь — обзор, банихоп-ускорение, спринт, присед, охота по лабиринту.
+    Вид от первого лица, зум с перекрестием, полёт без гравитации, карта из прямоугольников.
   </p>
 </header>
 
 <div class="layout">
   <div class="controls">
     <button id="lockBtn">Захват мыши</button>
-    <button id="resetBtn" class="secondary">Сброс позиции</button>
+    <button id="resetBtn" class="secondary">Сброс раунда</button>
   </div>
 
   <div class="container">
-    <canvas id="doomCanvas" width="800" height="450"></canvas>
+    <canvas id="arena" width="800" height="450"></canvas>
   </div>
 
   <div class="info">
-    <div><strong>Игрок 1 (охотник, камера):</strong> W/S — вперёд/назад, A/D — страйф, Shift — спринт, Ctrl — присед, Space — прыжок (банихоп ускоряет), F — удар (если жертва рядом).</div>
-    <div><strong>Игрок 2 (жертва, силуэт):</strong> стрелки ←↑↓→ — движение по лабиринту (виден как фигура в 3D).</div>
-    <div>Нажми “Захват мыши”, наведи курсор на канвас и кликни — заработает обзор мышью. Выход мышью: Esc.</div>
+    <div><strong>Охотник (камера):</strong> W/S — вперёд/назад, A/D — страйф, мышь — обзор, ЛКМ — выстрел (AWP), ПКМ — зум / выход из зума.</div>
+    <div><strong>Жертва (силуэт):</strong> стрелки ←↑↓→ — движение. Попадание = ваншот.</div>
+    <div>Нажми “Захват мыши”, кликни по канвасу — обзор мышью включится (Esc — выключит).</div>
   </div>
 
-  <div class="log" id="logBox">Готово. Встаньте в канвас, включите захват мыши и бегайте по лабиринту.</div>
+  <div class="log" id="logBox">Готово. Захвати мышь, летай по карте и стреляй по силуэту.</div>
 </div>
 
 <script>
 (function() {
-  const canvas = document.getElementById('doomCanvas');
+  const canvas = document.getElementById('arena');
   const ctx = canvas.getContext('2d');
-  const logBox = document.getElementById('logBox');
   const lockBtn = document.getElementById('lockBtn');
   const resetBtn = document.getElementById('resetBtn');
+  const logBox = document.getElementById('logBox');
 
   function log(msg) {
     const t = new Date().toLocaleTimeString('ru-RU', { hour12: false });
-    const line = `[${t}] ${msg}`;
-    logBox.textContent = line + "\n" + logBox.textContent;
+    logBox.textContent = `[${t}] ${msg}\n` + logBox.textContent;
   }
 
-  // ========= Pointer Lock (обзор мышью) =========
+  const W = canvas.width;
+  const H = canvas.height;
+  const HALF_H = H / 2;
+
+  // ===== Pointer lock =====
   lockBtn.addEventListener('click', () => {
     canvas.requestPointerLock();
   });
 
   document.addEventListener('pointerlockchange', () => {
     if (document.pointerLockElement === canvas) {
-      log('Мышь захвачена. Двигай мышью — обзор.');
+      log('Мышь захвачена.');
     } else {
-      log('Мышь отпущена (Esc).');
+      log('Мышь отпущена.');
     }
   });
-
-  // ========= Управление =========
-  const keys = {};
-  window.addEventListener('keydown', e => { keys[e.code] = true; });
-  window.addEventListener('keyup', e => { keys[e.code] = false; });
 
   let mouseDeltaX = 0;
   document.addEventListener('mousemove', e => {
@@ -174,33 +172,38 @@
     }
   });
 
-  // ========= Карта-лабиринт (больше, чем раньше) =========
-  // 0 — проход, 1 — стена
+  // ===== Управление =====
+  const keys = {};
+  window.addEventListener('keydown', e => { keys[e.code] = true; });
+  window.addEventListener('keyup', e => { keys[e.code] = false; });
+
+  // ===== Карта (прямоугольники-стены) =====
   const MAP_W = 24;
   const MAP_H = 24;
   const map = [
+    // Открытый центр с несколькими прямоугольниками-укрытиями и длинными линиями
     [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-    [1,0,0,0,0,0,0,0,0,1,0,0,0,0,1,0,0,0,1,0,0,0,0,1],
-    [1,0,1,1,1,0,1,1,0,1,0,1,1,0,1,0,1,0,1,0,1,1,0,1],
-    [1,0,1,0,0,0,0,1,0,0,0,1,0,0,1,0,1,0,0,0,0,1,0,1],
-    [1,0,1,0,1,1,0,1,1,1,0,1,0,1,1,0,1,1,1,1,0,1,0,1],
-    [1,0,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,0,0,1,0,0,0,1],
-    [1,0,1,1,0,1,1,1,0,1,1,1,0,1,0,1,1,1,0,1,1,1,0,1],
-    [1,0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,1],
-    [1,1,0,1,1,1,0,1,1,1,0,1,1,1,0,1,1,1,0,1,1,1,0,1],
-    [1,0,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,0,0,1,0,0,0,1],
-    [1,0,1,1,0,1,1,1,0,1,1,1,0,1,0,1,1,1,0,1,1,1,0,1],
-    [1,0,1,0,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,1],
-    [1,0,1,0,1,1,0,1,1,1,0,1,0,1,1,0,1,1,1,1,0,1,0,1],
-    [1,0,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,0,0,1,0,0,0,1],
-    [1,0,1,1,0,1,1,1,0,1,1,1,0,1,0,1,1,1,0,1,1,1,0,1],
-    [1,0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,1],
-    [1,1,0,1,1,1,0,1,1,1,0,1,1,1,0,1,1,1,0,1,1,1,0,1],
-    [1,0,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,0,0,1,0,0,0,1],
-    [1,0,1,1,0,1,1,1,0,1,1,1,0,1,0,1,1,1,0,1,1,1,0,1],
-    [1,0,1,0,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,1],
-    [1,0,1,0,1,1,0,1,1,1,0,1,0,1,1,0,1,1,1,1,0,1,0,1],
-    [1,0,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,0,0,1,0,0,0,1],
+    [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+    [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+    [1,0,0,0,0,0,0,0,0,1,1,1,0,0,0,1,1,1,0,0,0,0,0,1],
+    [1,0,0,0,0,0,0,0,0,1,0,1,0,0,0,1,0,1,0,0,0,0,0,1],
+    [1,0,0,0,0,0,0,0,0,1,0,1,0,0,0,1,0,1,0,0,0,0,0,1],
+    [1,0,0,0,0,0,0,0,0,1,0,1,0,0,0,1,0,1,0,0,0,0,0,1],
+    [1,0,0,0,0,0,0,0,0,1,1,1,0,0,0,1,1,1,0,0,0,0,0,1],
+    [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+    [1,0,0,0,0,1,1,1,0,0,0,0,0,0,0,0,0,1,1,1,0,0,0,1],
+    [1,0,0,0,0,1,0,1,0,0,0,0,0,0,0,0,0,1,0,1,0,0,0,1],
+    [1,0,0,0,0,1,0,1,0,0,0,0,0,0,0,0,0,1,0,1,0,0,0,1],
+    [1,0,0,0,0,1,1,1,0,0,0,0,0,0,0,0,0,1,1,1,0,0,0,1],
+    [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+    [1,0,0,0,0,0,0,0,0,1,1,1,0,0,0,1,1,1,0,0,0,0,0,1],
+    [1,0,0,0,0,0,0,0,0,1,0,1,0,0,0,1,0,1,0,0,0,0,0,1],
+    [1,0,0,0,0,0,0,0,0,1,0,1,0,0,0,1,0,1,0,0,0,0,0,1],
+    [1,0,0,0,0,0,0,0,0,1,0,1,0,0,0,1,0,1,0,0,0,0,0,1],
+    [1,0,0,0,0,0,0,0,0,1,1,1,0,0,0,1,1,1,0,0,0,0,0,1],
+    [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+    [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+    [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
     [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
     [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
   ];
@@ -210,113 +213,72 @@
     return map[Math.floor(y)][Math.floor(x)] === 1;
   }
 
-  // ========= Игрок 1 (охотник) =========
+  // ===== Игрок 1 (охотник) =====
   const player = {
-    x: 2.5,
-    y: 2.5,
+    x: 4.5,
+    y: 4.5,
     angle: 0,
-    baseSpeed: 3.0,
-    speed: 3.0,
-    maxSpeed: 9.0,
-    bunnyBoost: 1.4,
-    friction: 3.0,
-    rotSpeedMouse: 0.0025,
-    crouch: false,
-    eyeHeight: 0.5, // влияет на вертикальное смещение проекции
-    isJumping: false,
-    jumpCooldown: 0, // чтобы не спамить space
+    baseSpeed: 5.0,
+    speed: 5.0
   };
 
-  // ========= Игрок 2 (жертва) =========
+  // ===== Жертва =====
   const victim = {
-    x: 20.5,
-    y: 20.5,
-    speed: 2.8,
-    alive: true,
+    x: 19.5,
+    y: 16.5,
+    alive: true
   };
 
-  // ========= Настройки рендера =========
-  const W = canvas.width;
-  const H = canvas.height;
-  const HALF_H = H / 2;
-  const FOV = Math.PI / 3;
-  const HALF_FOV = FOV / 2;
-  const NUM_RAYS = W;
-  const PROJ_PLANE_DIST = (W / 2) / Math.tan(HALF_FOV);
+  // ===== Параметры "3D" =====
+  let FOV = Math.PI / 3;       // обычный
+  const FOV_NORMAL = Math.PI / 3;
+  const FOV_ZOOM = Math.PI / 12; // зум
+  const HALF_FOV_NORMAL = FOV_NORMAL / 2;
+  const HALF_FOV_ZOOM = FOV_ZOOM / 2;
 
-  // ========= Лучи =========
-  function castRay(rayAngle) {
+  let PROJ_PLANE_DIST = (W / 2) / Math.tan(FOV / 2);
+  function updateProjPlane() {
+    PROJ_PLANE_DIST = (W / 2) / Math.tan(FOV / 2);
+  }
+
+  let zoomed = false;
+  let sensBase = 0.0025;
+  let sensCurrent = sensBase;
+
+  // ===== Луч =====
+  function castRay(angle, maxDist = 40) {
     const step = 0.02;
     let dist = 0;
-    let hit = false;
     let hitX = player.x;
     let hitY = player.y;
+    const cos = Math.cos(angle);
+    const sin = Math.sin(angle);
 
-    const cos = Math.cos(rayAngle);
-    const sin = Math.sin(rayAngle);
-
-    while (!hit && dist < 30) {
+    while (dist < maxDist) {
       dist += step;
       hitX = player.x + cos * dist;
       hitY = player.y + sin * dist;
       if (isWall(hitX, hitY)) {
-        hit = true;
+        return { hit: true, dist, hitX, hitY };
       }
     }
-    return { dist, hit, hitX, hitY };
+    return { hit: false, dist: maxDist, hitX, hitY };
   }
 
-  // ========= Движение охотника (банихоп, спринт, присед) =========
+  // ===== Движение охотника =====
   function movePlayer(dt) {
-    // мышь — поворот
+    // мышь → поворот
     if (document.pointerLockElement === canvas) {
-      player.angle += mouseDeltaX * player.rotSpeedMouse;
+      player.angle += mouseDeltaX * sensCurrent;
     }
     mouseDeltaX = 0;
 
     const forward = (keys['KeyW'] || false) - (keys['KeyS'] || false);
-    const strafe = (keys['KeyD'] || false) - (keys['KeyA'] || false);
+    const strafe  = (keys['KeyD'] || false) - (keys['KeyA'] || false);
 
-    // спринт
-    let targetSpeed = player.baseSpeed;
-    if (keys['ShiftLeft'] || keys['ShiftRight']) {
-      targetSpeed *= 1.7;
-    }
-
-    // присед
-    if (keys['ControlLeft'] || keys['ControlRight']) {
-      player.crouch = true;
-      targetSpeed *= 0.5;
-      player.eyeHeight = 0.35;
-    } else {
-      player.crouch = false;
-      player.eyeHeight = 0.5;
-    }
-
-    // банихоп: если Space нажали при движении — буст
-    player.jumpCooldown -= dt;
-    if (player.jumpCooldown < 0) player.jumpCooldown = 0;
-    if (keys['Space'] && player.jumpCooldown === 0 && (forward !== 0 || strafe !== 0)) {
-      // увеличиваем текущую скорость
-      player.speed = Math.min(player.speed * player.bunnyBoost, player.maxSpeed);
-      player.jumpCooldown = 0.25; // нельзя прыгать слишком часто
-    }
-
-    // плавное стремление к targetSpeed
-    if (player.speed < targetSpeed) {
-      player.speed += 4 * dt;
-    } else if (player.speed > targetSpeed) {
-      player.speed -= player.friction * dt;
-      if (player.speed < targetSpeed) player.speed = targetSpeed;
-    }
-
-    // движение по направлению
-    const angle = player.angle;
-    const cos = Math.cos(angle);
-    const sin = Math.sin(angle);
-
-    let dx = 0;
-    let dy = 0;
+    let dx = 0, dy = 0;
+    const cos = Math.cos(player.angle);
+    const sin = Math.sin(player.angle);
 
     if (forward !== 0) {
       dx += cos * forward;
@@ -333,22 +295,22 @@
 
     const newX = player.x + dx;
     const newY = player.y + dy;
-
     if (!isWall(newX, player.y)) player.x = newX;
     if (!isWall(player.x, newY)) player.y = newY;
   }
 
-  // ========= Движение жертвы =========
+  // ===== Движение жертвы (стрелки) =====
   function moveVictim(dt) {
     if (!victim.alive) return;
     let vx = 0, vy = 0;
-    if (keys['ArrowUp']) vy -= 1;
-    if (keys['ArrowDown']) vy += 1;
-    if (keys['ArrowLeft']) vx -= 1;
+    if (keys['ArrowUp'])    vy -= 1;
+    if (keys['ArrowDown'])  vy += 1;
+    if (keys['ArrowLeft'])  vx -= 1;
     if (keys['ArrowRight']) vx += 1;
     const len = Math.hypot(vx, vy) || 1;
-    vx = vx / len * victim.speed * dt;
-    vy = vy / len * victim.speed * dt;
+    const speed = 3.5;
+    vx = vx / len * speed * dt;
+    vy = vy / len * speed * dt;
 
     const newX = victim.x + vx;
     const newY = victim.y + vy;
@@ -356,66 +318,138 @@
     if (!isWall(victim.x, newY)) victim.y = newY;
   }
 
-  // ========= Удар (F) =========
-  function handleMelee() {
-    if (!victim.alive) return;
-    if (!keys['KeyF']) return;
-    // дистанция до жертвы
+  // ===== Стрельба (AWP) =====
+  let canShoot = true;
+  let shootCooldown = 0;
+  window.addEventListener('mousedown', e => {
+    if (document.pointerLockElement !== canvas) return;
+    if (e.button === 0) { // ЛКМ
+      tryShoot();
+    }
+    if (e.button === 2) { // ПКМ — зум
+      zoomed = !zoomed;
+      if (zoomed) {
+        FOV = FOV_ZOOM;
+        sensCurrent = sensBase * 0.4;
+      } else {
+        FOV = FOV_NORMAL;
+        sensCurrent = sensBase;
+      }
+      updateProjPlane();
+      e.preventDefault();
+    }
+  });
+
+  // отключить контекстное меню по ПКМ
+  canvas.addEventListener('contextmenu', e => e.preventDefault());
+
+  function lineOfSightToVictim() {
+    // проверяем, есть ли стена между игроком и жертвой
     const dx = victim.x - player.x;
     const dy = victim.y - player.y;
-    const dist = Math.hypot(dx, dy);
-    if (dist < 0.7) {
-      victim.alive = false;
-      log('Охотник добрался до жертвы. Жертва убита.');
+    const distToVictim = Math.hypot(dx, dy);
+    const angleToVictim = Math.atan2(dy, dx);
+    const step = 0.05;
+    let t = 0;
+
+    const cos = Math.cos(angleToVictim);
+    const sin = Math.sin(angleToVictim);
+
+    while (t < distToVictim) {
+      const sx = player.x + cos * t;
+      const sy = player.y + sin * t;
+      if (isWall(sx, sy)) return false;
+      t += step;
     }
+    return true;
   }
 
-  // ========= Отрисовка =========
-  function draw() {
-    // фон: тёмное "небо" и "пол"
-    ctx.fillStyle = '#020617';
-    ctx.fillRect(0, 0, W, H / 2);
-    ctx.fillStyle = '#050816';
-    ctx.fillRect(0, H / 2, W, H / 2);
+  function tryShoot() {
+    if (!canShoot || shootCooldown > 0) return;
+    canShoot = false;
+    shootCooldown = 0.8; // перезарядка
+    log('Выстрел (AWP).');
 
-    // стены
+    // AWP hitscan: направление = угол камеры
+    const dx = victim.x - player.x;
+    const dy = victim.y - player.y;
+    const distToVictim = Math.hypot(dx, dy);
+    if (!victim.alive) return;
+
+    // проверка угла: жёсткий конус
+    const angleToVictim = Math.atan2(dy, dx);
+    let delta = angleToVictim - player.angle;
+    while (delta > Math.PI) delta -= 2 * Math.PI;
+    while (delta < -Math.PI) delta += 2 * Math.PI;
+
+    const headshotCone = zoomed ? (Math.PI / 180) * 0.6 : (Math.PI / 180) * 1.5; // чем меньше угол, тем точнее
+    if (Math.abs(delta) > headshotCone) {
+      // промах по направлению
+      return;
+    }
+
+    // проверка, нет ли стены между
+    if (!lineOfSightToVictim()) {
+      // стена между
+      return;
+    }
+
+    // попадание
+    victim.alive = false;
+    log('Попадание! Жертва уничтожена.');
+  }
+
+  // ===== Рендер =====
+  function drawWalls() {
+    // небо
+    ctx.fillStyle = '#02091d';
+    ctx.fillRect(0, 0, W, HALF_H);
+    // "небо" слегка градиентом
+    const grad = ctx.createLinearGradient(0, 0, 0, HALF_H);
+    grad.addColorStop(0, '#02091d');
+    grad.addColorStop(1, '#041226');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, HALF_H);
+
+    // пол
+    const grad2 = ctx.createLinearGradient(0, HALF_H, 0, H);
+    grad2.addColorStop(0, '#050816');
+    grad2.addColorStop(1, '#020617');
+    ctx.fillStyle = grad2;
+    ctx.fillRect(0, HALF_H, W, HALF_H);
+
+    const halfFov = FOV / 2;
+    const projPlaneDist = PROJ_PLANE_DIST;
+
     for (let x = 0; x < W; x++) {
       const screenX = x - W / 2;
-      const rayAngle = player.angle + Math.atan(screenX / PROJ_PLANE_DIST);
+      const rayAngle = player.angle + Math.atan(screenX / projPlaneDist);
 
       const result = castRay(rayAngle);
-
       let dist = result.dist;
-      // устранение рыбьего глаза
+      // исправляем рыбьий глаз
       dist *= Math.cos(rayAngle - player.angle);
 
-      const wallHeight = (1 * PROJ_PLANE_DIST) / dist;
-      const eyeOffset = (player.eyeHeight - 0.5) * H * 0.6; // сдвиг горизонта при приседе
-      const startY = Math.floor(H / 2 - wallHeight / 2 + eyeOffset);
-      const endY = Math.floor(H / 2 + wallHeight / 2 + eyeOffset);
+      const wallHeight = projPlaneDist / dist;
+      const startY = Math.floor(HALF_H - wallHeight / 2);
+      const endY = Math.floor(HALF_H + wallHeight / 2);
 
-      let shade = 1 / (1 + dist * 0.1);
+      let shade = 1 / (1 + dist * 0.15);
       if (shade > 1) shade = 1;
       if (shade < 0.1) shade = 0.1;
-      const r = Math.floor(30 + 100 * shade);
-      const g = Math.floor(20 + 80 * shade);
-      const b = Math.floor(40 + 120 * shade);
+      const r = Math.floor(40 + 80 * shade);
+      const g = Math.floor(60 + 60 * shade);
+      const b = Math.floor(90 + 100 * shade);
       ctx.strokeStyle = `rgb(${r},${g},${b})`;
       ctx.beginPath();
       ctx.moveTo(x, startY);
       ctx.lineTo(x, endY);
       ctx.stroke();
     }
-
-    // спрайт жертвы
-    if (victim.alive) {
-      drawVictimSprite();
-    }
-
-    drawHUD();
   }
 
   function drawVictimSprite() {
+    if (!victim.alive) return;
     const dx = victim.x - player.x;
     const dy = victim.y - player.y;
     const dist = Math.hypot(dx, dy);
@@ -426,60 +460,118 @@
     while (delta > Math.PI) delta -= 2 * Math.PI;
     while (delta < -Math.PI) delta += 2 * Math.PI;
 
-    if (Math.abs(delta) > HALF_FOV + 0.3) return; // вне поля зрения
+    const halfFov = FOV / 2;
+    if (Math.abs(delta) > halfFov + 0.3) return;
 
     const spriteScreenX = Math.tan(delta) * PROJ_PLANE_DIST;
-    const spriteSize = (1 * PROJ_PLANE_DIST) / dist;
+    const spriteSize = PROJ_PLANE_DIST / dist;
+
     const xCenter = W / 2 + spriteScreenX;
-    const eyeOffset = (player.eyeHeight - 0.5) * H * 0.6;
-    const yMid = H / 2 + eyeOffset;
+    const yMid = HALF_H;
     const yTop = yMid - spriteSize / 2;
 
     const w = spriteSize * 0.6;
-    const h = spriteSize * 1.2;
+    const h = spriteSize * 1.4;
 
-    // лёгкий "glow"
-    ctx.fillStyle = 'rgba(148,27,27,0.3)';
+    // ореол
+    ctx.fillStyle = 'rgba(148,27,27,0.25)';
     ctx.fillRect(xCenter - w, yTop - 10, w * 2, h + 20);
 
+    // тело
     ctx.fillStyle = '#f97316';
-    ctx.fillRect(xCenter - w / 2, yTop, w, h);
+    ctx.fillRect(xCenter - w/2, yTop + h*0.2, w, h*0.8);
+    // голова
+    ctx.fillStyle = '#f97316';
+    ctx.fillRect(xCenter - w/3, yTop, (2*w)/3, h*0.25);
+
     ctx.strokeStyle = '#111827';
     ctx.lineWidth = 2;
-    ctx.strokeRect(xCenter - w / 2, yTop, w, h);
+    ctx.strokeRect(xCenter - w/2, yTop + h*0.2, w, h*0.8);
+    ctx.strokeRect(xCenter - w/3, yTop, (2*w)/3, h*0.25);
 
-    // "глаза"
+    // глаза
     ctx.fillStyle = '#facc15';
-    ctx.fillRect(xCenter - w / 4, yTop + h * 0.2, 4, 4);
-    ctx.fillRect(xCenter + w / 4 - 4, yTop + h * 0.2, 4, 4);
+    const gh = yTop + h*0.08;
+    ctx.fillRect(xCenter - w*0.18, gh, 4, 4);
+    ctx.fillRect(xCenter + w*0.18 - 4, gh, 4, 4);
   }
 
-  function drawHUD() {
-    // нижняя панель
-    ctx.fillStyle = 'rgba(15,23,42,0.7)';
-    ctx.fillRect(0, H - 48, W, 48);
-
-    // скорость
-    ctx.fillStyle = '#e5e7eb';
-    ctx.font = '11px system-ui';
-    ctx.fillText('Скорость: ' + player.speed.toFixed(2), 12, H - 30);
-    ctx.fillText('Жертва: ' + (victim.alive ? 'жива' : 'убита'), 12, H - 16);
-
-    // простая "рука"/оружие снизу
-    const gunW = W * 0.18;
-    const gunH = 36;
+  function drawGun() {
+    const gunW = W * 0.26;
+    const gunH = 44;
     const gx = W / 2 - gunW / 2;
-    const gy = H - gunH - 6;
-    ctx.fillStyle = '#0f172a';
+    const gy = H - gunH - 8;
+    ctx.fillStyle = '#050b18';
     ctx.fillRect(gx, gy, gunW, gunH);
     ctx.strokeStyle = '#e5e7eb';
     ctx.lineWidth = 2;
     ctx.strokeRect(gx, gy, gunW, gunH);
+
     ctx.fillStyle = '#e5e7eb';
-    ctx.fillRect(W/2 - 6, gy, 12, 8); // "ствол"
+    ctx.fillRect(W/2 - 7, gy, 14, 9); // "ствол"
   }
 
-  // ========= Цикл =========
+  function drawCrosshair() {
+    ctx.save();
+    ctx.strokeStyle = '#e5e7eb';
+    ctx.lineWidth = zoomed ? 1.2 : 0.8;
+    const size = zoomed ? 22 : 10;
+    const gap = zoomed ? 3 : 4;
+    const cx = W / 2;
+    const cy = HALF_H;
+
+    // вертикаль
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - size);
+    ctx.lineTo(cx, cy - gap);
+    ctx.moveTo(cx, cy + gap);
+    ctx.lineTo(cx, cy + size);
+    ctx.stroke();
+
+    // горизонталь
+    ctx.beginPath();
+    ctx.moveTo(cx - size, cy);
+    ctx.lineTo(cx - gap, cy);
+    ctx.moveTo(cx + gap, cy);
+    ctx.lineTo(cx + size, cy);
+    ctx.stroke();
+
+    if (zoomed) {
+      // круговой контур прицела + затемнение краёв
+      ctx.beginPath();
+      ctx.arc(cx, cy, W*0.23, 0, Math.PI*2);
+      ctx.strokeStyle = 'rgba(229,231,235,0.7)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.arc(cx, cy, W*0.24, 0, Math.PI*2);
+      ctx.strokeStyle = 'rgba(15,23,42,0.9)';
+      ctx.lineWidth = W*0.52;
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function drawHUD() {
+    ctx.fillStyle = 'rgba(15,23,42,0.7)';
+    ctx.fillRect(0, H-40, W, 40);
+
+    ctx.fillStyle = '#e5e7eb';
+    ctx.font = '11px system-ui';
+    ctx.fillText('AWP дуэль. Жертва: ' + (victim.alive ? 'жива' : 'уничтожена'), 10, H-22);
+    ctx.fillText('Зум: ' + (zoomed ? 'включён (ПКМ — выключить)' : 'выкл. (ПКМ — включить)'), 10, H-10);
+  }
+
+  function draw() {
+    drawWalls();
+    drawVictimSprite();
+    drawGun();
+    drawCrosshair();
+    drawHUD();
+  }
+
+  // ===== Цикл =====
   let lastTime = performance.now();
   function loop(now) {
     const dt = (now - lastTime) / 1000;
@@ -487,26 +579,36 @@
 
     movePlayer(dt);
     moveVictim(dt);
-    handleMelee();
-    draw();
 
+    if (!canShoot) {
+      shootCooldown -= dt;
+      if (shootCooldown <= 0) {
+        shootCooldown = 0;
+        canShoot = true;
+      }
+    }
+
+    draw();
     requestAnimationFrame(loop);
   }
   requestAnimationFrame(loop);
 
-  // ========= Сброс позиций =========
+  // ===== Сброс =====
   resetBtn.addEventListener('click', () => {
-    player.x = 2.5;
-    player.y = 2.5;
+    player.x = 4.5;
+    player.y = 4.5;
     player.angle = 0;
-    player.speed = player.baseSpeed;
-    victim.x = 20.5;
-    victim.y = 20.5;
+    victim.x = 19.5;
+    victim.y = 16.5;
     victim.alive = true;
-    log('Позиции сброшены. Охотник и жертва вернулись на старт.');
+    zoomed = false;
+    FOV = FOV_NORMAL;
+    sensCurrent = sensBase;
+    updateProjPlane();
+    log('Раунд сброшен. Позиции и зум сброшены.');
   });
 
-  log('Прототип загружен. Игрок 1 — охотник (WASD, Shift, Ctrl, Space, F, мышь), Игрок 2 — жертва (стрелки).');
+  log('Прототип загружен. Охотник: WASD + мышь + ЛКМ/ПКМ. Жертва: стрелки. Попадание = ваншот.');
 })();
 </script>
 </body>
