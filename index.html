@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
-  <title>Перелётные снайпера — AWP арена</title>
+  <title>Аэродром Антонова — артиллерийский бой</title>
   <style>
     * { box-sizing: border-box; }
     body {
@@ -17,7 +17,7 @@
       min-height: 100vh;
     }
     header {
-      padding: 12px 16px 4px;
+      padding: 10px 16px 4px;
       text-align: center;
     }
     h1 {
@@ -32,584 +32,281 @@
     }
     .layout {
       width: 100%;
-      max-width: 960px;
+      max-width: 980px;
       padding: 8px 16px 24px;
       display: flex;
-      flex-direction: column;
-      gap: 10px;
-      align-items: center;
+      gap: 12px;
     }
-    .controls {
+    .panel {
+      width: 260px;
+      padding: 10px;
+      border-radius: 12px;
+      background: rgba(15,23,42,0.95);
+      border: 1px solid #111827;
       display: flex;
-      flex-wrap: wrap;
+      flex-direction: column;
       gap: 8px;
-      align-items: center;
-      justify-content: center;
+      font-size: 12px;
     }
-    button {
+    .panel h2 {
+      font-size: 13px;
+      margin: 0 0 4px;
+      font-weight: 600;
+    }
+    .panel-section {
+      padding: 6px 8px;
+      border-radius: 8px;
+      background: rgba(15,23,42,0.9);
+      border: 1px solid #111827;
+    }
+    .unit-list {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .unit-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+    }
+    .unit-label {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .unit-name {
+      font-weight: 500;
+    }
+    .unit-size {
+      color: #9ca3af;
+      font-size: 11px;
+    }
+    .unit-count {
+      font-size: 11px;
+      color: #facc15;
+      white-space: nowrap;
+    }
+    .unit-select-btn {
+      padding: 3px 8px;
+      border-radius: 999px;
+      border: 1px solid #1d4ed8;
+      background: #0f172a;
+      color: #e5e7eb;
+      font-size: 11px;
+      cursor: pointer;
+    }
+    .unit-select-btn.active {
+      background: #1d4ed8;
+    }
+    .orientation-buttons {
+      display: flex;
+      gap: 6px;
+      margin-top: 4px;
+    }
+    .orientation-btn {
+      flex: 1;
+      padding: 3px 0;
+      border-radius: 999px;
+      border: 1px solid #334155;
+      background: #020617;
+      color: #e5e7eb;
+      font-size: 11px;
+      cursor: pointer;
+      text-align: center;
+    }
+    .orientation-btn.active {
+      background: #16a34a;
+      border-color: #16a34a;
+    }
+    .status-line {
+      font-size: 11px;
+      color: #9ca3af;
+      margin-top: 4px;
+      min-height: 30px;
+    }
+    .status-line strong {
+      color: #e5e7eb;
+    }
+    .balance {
+      font-size: 12px;
+      color: #e5e7eb;
+    }
+    .balance span {
+      color: #facc15;
+      font-weight: 600;
+    }
+    button.main {
+      margin-top: 4px;
+      width: 100%;
+      padding: 6px 0;
+      border-radius: 999px;
+      border: 1px solid #1d4ed8;
       background: #1d4ed8;
       color: #e5e7eb;
-      border: 1px solid #1d4ed8;
-      border-radius: 999px;
-      padding: 5px 11px;
       font-size: 12px;
       cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      transition: background 0.15s ease-out, transform 0.1s ease-out, box-shadow 0.1s ease-out;
     }
-    button.secondary {
+    button.main.secondary {
       background: #0f172a;
       border-color: #334155;
     }
-    button:hover {
-      transform: translateY(-1px);
-      box-shadow: 0 6px 12px rgba(0,0,0,0.4);
-    }
-    .container {
-      background: radial-gradient(circle at top, #0b1120 0, #020617 50%, #000 100%);
-      padding: 12px;
+
+    .board-wrapper {
+      flex: 1;
+      padding: 10px;
       border-radius: 16px;
-      border: 1px solid #1f2937;
-      box-shadow: 0 18px 36px rgba(0,0,0,0.7);
-    }
-    canvas {
-      display: block;
-      border-radius: 10px;
+      background: radial-gradient(circle at top, #0b1120 0, #020617 40%, #000 100%);
       border: 1px solid #111827;
-      background: #020617;
+      box-shadow: 0 18px 36px rgba(0,0,0,0.8);
     }
-    #arena {
-      width: 800px;
-      height: 450px;
-      cursor: crosshair;
-    }
-    .info {
-      font-size: 12px;
+
+    .board-title {
+      font-size: 13px;
+      margin-bottom: 6px;
       color: #9ca3af;
-      text-align: center;
-      max-width: 960px;
     }
-    .info strong { color: #e5e7eb; }
+
+    .grid {
+      position: relative;
+      display: grid;
+      grid-template-columns: repeat(12, 32px);
+      grid-template-rows: repeat(10, 32px);
+      gap: 2px;
+      padding: 6px;
+      background: #022c22;
+      border-radius: 10px;
+      border: 1px solid #064e3b;
+    }
+    .cell {
+      width: 32px;
+      height: 32px;
+      border-radius: 4px;
+      background: #064e3b; /* трава */
+      border: 1px solid #022c22;
+      position: relative;
+      cursor: pointer;
+      transition: background 0.1s ease-out, transform 0.05s ease-out, box-shadow 0.05s ease-out;
+    }
+    .cell:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 8px rgba(0,0,0,0.6);
+    }
+
+    .cell-runway {
+      background: #1f2937;
+    }
+    .cell-plane {
+      background: linear-gradient(135deg, #1d4ed8, #0f172a);
+    }
+    .cell-heli {
+      background: linear-gradient(135deg, #16a34a, #064e3b);
+    }
+
+    .cell-hit {
+      background: #7f1d1d !important;
+      border-color: #b91c1c;
+    }
+    .cell-miss {
+      background: #020617 !important;
+      border-color: #020617;
+      opacity: 0.5;
+    }
+
+    .cell-marker {
+      position: absolute;
+      inset: 3px;
+      border-radius: 4px;
+      border: 1px dashed rgba(148,163,184,0.6);
+      pointer-events: none;
+    }
+
+    .cell-label {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      color: #e5e7eb;
+      font-weight: 600;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.7);
+      pointer-events: none;
+    }
+
     .log {
+      margin-top: 6px;
       font-size: 11px;
       color: #6b7280;
       font-family: monospace;
-      background: rgba(15,23,42,0.85);
+      background: rgba(15,23,42,0.9);
       border-radius: 10px;
-      padding: 6px 10px;
+      padding: 6px 8px;
       border: 1px solid #111827;
       max-height: 140px;
       overflow-y: auto;
       white-space: pre-line;
-      width: 100%;
-      max-width: 960px;
     }
   </style>
 </head>
 <body>
 <header>
-  <h1>Перелётные снайпера — AWP псевдо-3D арена</h1>
-  <p class="subtitle">
-    Вид от первого лица, зум с перекрестием, полёт без гравитации, карта из прямоугольников.
-  </p>
+  <h1>Аэродром Антонова — артиллерийский “морской бой”</h1>
+  <p class="subtitle">Игрок 1 расставляет Ил-76, вертолёты и Ан-2 на поле. Игрок 2 бьёт артой по клеткам, за каждое попадание — очко.</p>
 </header>
 
 <div class="layout">
-  <div class="controls">
-    <button id="lockBtn">Захват мыши</button>
-    <button id="resetBtn" class="secondary">Сброс раунда</button>
+  <div class="panel">
+    <div class="panel-section">
+      <h2>Техника на аэродроме</h2>
+      <div class="unit-list" id="unitList"></div>
+    </div>
+
+    <div class="panel-section">
+      <h2>Ориентация техники</h2>
+      <div class="orientation-buttons">
+        <button class="orientation-btn active" data-orient="H">Горизонтально</button>
+        <button class="orientation-btn" data-orient="V">Вертикально</button>
+      </div>
+      <div class="status-line" id="statusPlacement">
+        Шаг 1. Выбери тип и ориентацию, кликай по клеткам для размещения.
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <h2>Режим</h2>
+      <div class="balance">Очки артиллерии: <span id="score">0</span></div>
+      <button class="main secondary" id="startArtilleryBtn">Перейти к обстрелу</button>
+      <button class="main" id="resetBtn">Сбросить и начать заново</button>
+      <div class="status-line" id="statusGame">
+        Сейчас режим <strong>расстановки</strong>.
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <h2>Подсказки</h2>
+      <ul style="margin: 0 0 0 14px; padding: 0; font-size: 11px; color:#9ca3af;">
+        <li>Сначала расставь все самолёты и вертолёты.</li>
+        <li>Потом нажми “Перейти к обстрелу”.</li>
+        <li>Каждое попадание по технике = +1 очко.</li>
+        <li>Когда вся техника уничтожена — аэродром считается выведенным из строя.</li>
+      </ul>
+    </div>
   </div>
 
-  <div class="container">
-    <canvas id="arena" width="800" height="450"></canvas>
+  <div class="board-wrapper">
+    <div class="board-title">Аэродром Антонова (Игрок 1 — расстановка, Игрок 2 — артобстрел)</div>
+    <div class="grid" id="grid"></div>
+    <div class="log" id="logBox"></div>
   </div>
-
-  <div class="info">
-    <div><strong>Охотник (камера):</strong> W/S — вперёд/назад, A/D — страйф, мышь — обзор, ЛКМ — выстрел (AWP), ПКМ — зум / выход из зума.</div>
-    <div><strong>Жертва (силуэт):</strong> стрелки ←↑↓→ — движение. Попадание = ваншот.</div>
-    <div>Нажми “Захват мыши”, кликни по канвасу — обзор мышью включится (Esc — выключит).</div>
-  </div>
-
-  <div class="log" id="logBox">Готово. Захвати мышь, летай по карте и стреляй по силуэту.</div>
 </div>
 
 <script>
 (function() {
-  const canvas = document.getElementById('arena');
-  const ctx = canvas.getContext('2d');
-  const lockBtn = document.getElementById('lockBtn');
-  const resetBtn = document.getElementById('resetBtn');
-  const logBox = document.getElementById('logBox');
-
-  function log(msg) {
-    const t = new Date().toLocaleTimeString('ru-RU', { hour12: false });
-    logBox.textContent = `[${t}] ${msg}\n` + logBox.textContent;
-  }
-
-  const W = canvas.width;
-  const H = canvas.height;
-  const HALF_H = H / 2;
-
-  // ===== Pointer lock =====
-  lockBtn.addEventListener('click', () => {
-    canvas.requestPointerLock();
-  });
-
-  document.addEventListener('pointerlockchange', () => {
-    if (document.pointerLockElement === canvas) {
-      log('Мышь захвачена.');
-    } else {
-      log('Мышь отпущена.');
-    }
-  });
-
-  let mouseDeltaX = 0;
-  document.addEventListener('mousemove', e => {
-    if (document.pointerLockElement === canvas) {
-      mouseDeltaX += e.movementX;
-    }
-  });
-
-  // ===== Управление =====
-  const keys = {};
-  window.addEventListener('keydown', e => { keys[e.code] = true; });
-  window.addEventListener('keyup', e => { keys[e.code] = false; });
-
-  // ===== Карта (прямоугольники-стены) =====
-  const MAP_W = 24;
-  const MAP_H = 24;
-  const map = [
-    // Открытый центр с несколькими прямоугольниками-укрытиями и длинными линиями
-    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-    [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-    [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-    [1,0,0,0,0,0,0,0,0,1,1,1,0,0,0,1,1,1,0,0,0,0,0,1],
-    [1,0,0,0,0,0,0,0,0,1,0,1,0,0,0,1,0,1,0,0,0,0,0,1],
-    [1,0,0,0,0,0,0,0,0,1,0,1,0,0,0,1,0,1,0,0,0,0,0,1],
-    [1,0,0,0,0,0,0,0,0,1,0,1,0,0,0,1,0,1,0,0,0,0,0,1],
-    [1,0,0,0,0,0,0,0,0,1,1,1,0,0,0,1,1,1,0,0,0,0,0,1],
-    [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-    [1,0,0,0,0,1,1,1,0,0,0,0,0,0,0,0,0,1,1,1,0,0,0,1],
-    [1,0,0,0,0,1,0,1,0,0,0,0,0,0,0,0,0,1,0,1,0,0,0,1],
-    [1,0,0,0,0,1,0,1,0,0,0,0,0,0,0,0,0,1,0,1,0,0,0,1],
-    [1,0,0,0,0,1,1,1,0,0,0,0,0,0,0,0,0,1,1,1,0,0,0,1],
-    [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-    [1,0,0,0,0,0,0,0,0,1,1,1,0,0,0,1,1,1,0,0,0,0,0,1],
-    [1,0,0,0,0,0,0,0,0,1,0,1,0,0,0,1,0,1,0,0,0,0,0,1],
-    [1,0,0,0,0,0,0,0,0,1,0,1,0,0,0,1,0,1,0,0,0,0,0,1],
-    [1,0,0,0,0,0,0,0,0,1,0,1,0,0,0,1,0,1,0,0,0,0,0,1],
-    [1,0,0,0,0,0,0,0,0,1,1,1,0,0,0,1,1,1,0,0,0,0,0,1],
-    [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-    [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-    [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-    [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-  ];
-
-  function isWall(x, y) {
-    if (x < 0 || x >= MAP_W || y < 0 || y >= MAP_H) return true;
-    return map[Math.floor(y)][Math.floor(x)] === 1;
-  }
-
-  // ===== Игрок 1 (охотник) =====
-  const player = {
-    x: 4.5,
-    y: 4.5,
-    angle: 0,
-    baseSpeed: 5.0,
-    speed: 5.0
-  };
-
-  // ===== Жертва =====
-  const victim = {
-    x: 19.5,
-    y: 16.5,
-    alive: true
-  };
-
-  // ===== Параметры "3D" =====
-  let FOV = Math.PI / 3;       // обычный
-  const FOV_NORMAL = Math.PI / 3;
-  const FOV_ZOOM = Math.PI / 12; // зум
-  const HALF_FOV_NORMAL = FOV_NORMAL / 2;
-  const HALF_FOV_ZOOM = FOV_ZOOM / 2;
-
-  let PROJ_PLANE_DIST = (W / 2) / Math.tan(FOV / 2);
-  function updateProjPlane() {
-    PROJ_PLANE_DIST = (W / 2) / Math.tan(FOV / 2);
-  }
-
-  let zoomed = false;
-  let sensBase = 0.0025;
-  let sensCurrent = sensBase;
-
-  // ===== Луч =====
-  function castRay(angle, maxDist = 40) {
-    const step = 0.02;
-    let dist = 0;
-    let hitX = player.x;
-    let hitY = player.y;
-    const cos = Math.cos(angle);
-    const sin = Math.sin(angle);
-
-    while (dist < maxDist) {
-      dist += step;
-      hitX = player.x + cos * dist;
-      hitY = player.y + sin * dist;
-      if (isWall(hitX, hitY)) {
-        return { hit: true, dist, hitX, hitY };
-      }
-    }
-    return { hit: false, dist: maxDist, hitX, hitY };
-  }
-
-  // ===== Движение охотника =====
-  function movePlayer(dt) {
-    // мышь → поворот
-    if (document.pointerLockElement === canvas) {
-      player.angle += mouseDeltaX * sensCurrent;
-    }
-    mouseDeltaX = 0;
-
-    const forward = (keys['KeyW'] || false) - (keys['KeyS'] || false);
-    const strafe  = (keys['KeyD'] || false) - (keys['KeyA'] || false);
-
-    let dx = 0, dy = 0;
-    const cos = Math.cos(player.angle);
-    const sin = Math.sin(player.angle);
-
-    if (forward !== 0) {
-      dx += cos * forward;
-      dy += sin * forward;
-    }
-    if (strafe !== 0) {
-      dx += sin * strafe;
-      dy += -cos * strafe;
-    }
-
-    const len = Math.hypot(dx, dy) || 1;
-    dx = dx / len * player.speed * dt;
-    dy = dy / len * player.speed * dt;
-
-    const newX = player.x + dx;
-    const newY = player.y + dy;
-    if (!isWall(newX, player.y)) player.x = newX;
-    if (!isWall(player.x, newY)) player.y = newY;
-  }
-
-  // ===== Движение жертвы (стрелки) =====
-  function moveVictim(dt) {
-    if (!victim.alive) return;
-    let vx = 0, vy = 0;
-    if (keys['ArrowUp'])    vy -= 1;
-    if (keys['ArrowDown'])  vy += 1;
-    if (keys['ArrowLeft'])  vx -= 1;
-    if (keys['ArrowRight']) vx += 1;
-    const len = Math.hypot(vx, vy) || 1;
-    const speed = 3.5;
-    vx = vx / len * speed * dt;
-    vy = vy / len * speed * dt;
-
-    const newX = victim.x + vx;
-    const newY = victim.y + vy;
-    if (!isWall(newX, victim.y)) victim.x = newX;
-    if (!isWall(victim.x, newY)) victim.y = newY;
-  }
-
-  // ===== Стрельба (AWP) =====
-  let canShoot = true;
-  let shootCooldown = 0;
-  window.addEventListener('mousedown', e => {
-    if (document.pointerLockElement !== canvas) return;
-    if (e.button === 0) { // ЛКМ
-      tryShoot();
-    }
-    if (e.button === 2) { // ПКМ — зум
-      zoomed = !zoomed;
-      if (zoomed) {
-        FOV = FOV_ZOOM;
-        sensCurrent = sensBase * 0.4;
-      } else {
-        FOV = FOV_NORMAL;
-        sensCurrent = sensBase;
-      }
-      updateProjPlane();
-      e.preventDefault();
-    }
-  });
-
-  // отключить контекстное меню по ПКМ
-  canvas.addEventListener('contextmenu', e => e.preventDefault());
-
-  function lineOfSightToVictim() {
-    // проверяем, есть ли стена между игроком и жертвой
-    const dx = victim.x - player.x;
-    const dy = victim.y - player.y;
-    const distToVictim = Math.hypot(dx, dy);
-    const angleToVictim = Math.atan2(dy, dx);
-    const step = 0.05;
-    let t = 0;
-
-    const cos = Math.cos(angleToVictim);
-    const sin = Math.sin(angleToVictim);
-
-    while (t < distToVictim) {
-      const sx = player.x + cos * t;
-      const sy = player.y + sin * t;
-      if (isWall(sx, sy)) return false;
-      t += step;
-    }
-    return true;
-  }
-
-  function tryShoot() {
-    if (!canShoot || shootCooldown > 0) return;
-    canShoot = false;
-    shootCooldown = 0.8; // перезарядка
-    log('Выстрел (AWP).');
-
-    // AWP hitscan: направление = угол камеры
-    const dx = victim.x - player.x;
-    const dy = victim.y - player.y;
-    const distToVictim = Math.hypot(dx, dy);
-    if (!victim.alive) return;
-
-    // проверка угла: жёсткий конус
-    const angleToVictim = Math.atan2(dy, dx);
-    let delta = angleToVictim - player.angle;
-    while (delta > Math.PI) delta -= 2 * Math.PI;
-    while (delta < -Math.PI) delta += 2 * Math.PI;
-
-    const headshotCone = zoomed ? (Math.PI / 180) * 0.6 : (Math.PI / 180) * 1.5; // чем меньше угол, тем точнее
-    if (Math.abs(delta) > headshotCone) {
-      // промах по направлению
-      return;
-    }
-
-    // проверка, нет ли стены между
-    if (!lineOfSightToVictim()) {
-      // стена между
-      return;
-    }
-
-    // попадание
-    victim.alive = false;
-    log('Попадание! Жертва уничтожена.');
-  }
-
-  // ===== Рендер =====
-  function drawWalls() {
-    // небо
-    ctx.fillStyle = '#02091d';
-    ctx.fillRect(0, 0, W, HALF_H);
-    // "небо" слегка градиентом
-    const grad = ctx.createLinearGradient(0, 0, 0, HALF_H);
-    grad.addColorStop(0, '#02091d');
-    grad.addColorStop(1, '#041226');
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, W, HALF_H);
-
-    // пол
-    const grad2 = ctx.createLinearGradient(0, HALF_H, 0, H);
-    grad2.addColorStop(0, '#050816');
-    grad2.addColorStop(1, '#020617');
-    ctx.fillStyle = grad2;
-    ctx.fillRect(0, HALF_H, W, HALF_H);
-
-    const halfFov = FOV / 2;
-    const projPlaneDist = PROJ_PLANE_DIST;
-
-    for (let x = 0; x < W; x++) {
-      const screenX = x - W / 2;
-      const rayAngle = player.angle + Math.atan(screenX / projPlaneDist);
-
-      const result = castRay(rayAngle);
-      let dist = result.dist;
-      // исправляем рыбьий глаз
-      dist *= Math.cos(rayAngle - player.angle);
-
-      const wallHeight = projPlaneDist / dist;
-      const startY = Math.floor(HALF_H - wallHeight / 2);
-      const endY = Math.floor(HALF_H + wallHeight / 2);
-
-      let shade = 1 / (1 + dist * 0.15);
-      if (shade > 1) shade = 1;
-      if (shade < 0.1) shade = 0.1;
-      const r = Math.floor(40 + 80 * shade);
-      const g = Math.floor(60 + 60 * shade);
-      const b = Math.floor(90 + 100 * shade);
-      ctx.strokeStyle = `rgb(${r},${g},${b})`;
-      ctx.beginPath();
-      ctx.moveTo(x, startY);
-      ctx.lineTo(x, endY);
-      ctx.stroke();
-    }
-  }
-
-  function drawVictimSprite() {
-    if (!victim.alive) return;
-    const dx = victim.x - player.x;
-    const dy = victim.y - player.y;
-    const dist = Math.hypot(dx, dy);
-    if (dist < 0.001) return;
-
-    const angleTo = Math.atan2(dy, dx);
-    let delta = angleTo - player.angle;
-    while (delta > Math.PI) delta -= 2 * Math.PI;
-    while (delta < -Math.PI) delta += 2 * Math.PI;
-
-    const halfFov = FOV / 2;
-    if (Math.abs(delta) > halfFov + 0.3) return;
-
-    const spriteScreenX = Math.tan(delta) * PROJ_PLANE_DIST;
-    const spriteSize = PROJ_PLANE_DIST / dist;
-
-    const xCenter = W / 2 + spriteScreenX;
-    const yMid = HALF_H;
-    const yTop = yMid - spriteSize / 2;
-
-    const w = spriteSize * 0.6;
-    const h = spriteSize * 1.4;
-
-    // ореол
-    ctx.fillStyle = 'rgba(148,27,27,0.25)';
-    ctx.fillRect(xCenter - w, yTop - 10, w * 2, h + 20);
-
-    // тело
-    ctx.fillStyle = '#f97316';
-    ctx.fillRect(xCenter - w/2, yTop + h*0.2, w, h*0.8);
-    // голова
-    ctx.fillStyle = '#f97316';
-    ctx.fillRect(xCenter - w/3, yTop, (2*w)/3, h*0.25);
-
-    ctx.strokeStyle = '#111827';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(xCenter - w/2, yTop + h*0.2, w, h*0.8);
-    ctx.strokeRect(xCenter - w/3, yTop, (2*w)/3, h*0.25);
-
-    // глаза
-    ctx.fillStyle = '#facc15';
-    const gh = yTop + h*0.08;
-    ctx.fillRect(xCenter - w*0.18, gh, 4, 4);
-    ctx.fillRect(xCenter + w*0.18 - 4, gh, 4, 4);
-  }
-
-  function drawGun() {
-    const gunW = W * 0.26;
-    const gunH = 44;
-    const gx = W / 2 - gunW / 2;
-    const gy = H - gunH - 8;
-    ctx.fillStyle = '#050b18';
-    ctx.fillRect(gx, gy, gunW, gunH);
-    ctx.strokeStyle = '#e5e7eb';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(gx, gy, gunW, gunH);
-
-    ctx.fillStyle = '#e5e7eb';
-    ctx.fillRect(W/2 - 7, gy, 14, 9); // "ствол"
-  }
-
-  function drawCrosshair() {
-    ctx.save();
-    ctx.strokeStyle = '#e5e7eb';
-    ctx.lineWidth = zoomed ? 1.2 : 0.8;
-    const size = zoomed ? 22 : 10;
-    const gap = zoomed ? 3 : 4;
-    const cx = W / 2;
-    const cy = HALF_H;
-
-    // вертикаль
-    ctx.beginPath();
-    ctx.moveTo(cx, cy - size);
-    ctx.lineTo(cx, cy - gap);
-    ctx.moveTo(cx, cy + gap);
-    ctx.lineTo(cx, cy + size);
-    ctx.stroke();
-
-    // горизонталь
-    ctx.beginPath();
-    ctx.moveTo(cx - size, cy);
-    ctx.lineTo(cx - gap, cy);
-    ctx.moveTo(cx + gap, cy);
-    ctx.lineTo(cx + size, cy);
-    ctx.stroke();
-
-    if (zoomed) {
-      // круговой контур прицела + затемнение краёв
-      ctx.beginPath();
-      ctx.arc(cx, cy, W*0.23, 0, Math.PI*2);
-      ctx.strokeStyle = 'rgba(229,231,235,0.7)';
-      ctx.lineWidth = 1;
-      ctx.stroke();
-
-      ctx.beginPath();
-      ctx.arc(cx, cy, W*0.24, 0, Math.PI*2);
-      ctx.strokeStyle = 'rgba(15,23,42,0.9)';
-      ctx.lineWidth = W*0.52;
-      ctx.stroke();
-    }
-    ctx.restore();
-  }
-
-  function drawHUD() {
-    ctx.fillStyle = 'rgba(15,23,42,0.7)';
-    ctx.fillRect(0, H-40, W, 40);
-
-    ctx.fillStyle = '#e5e7eb';
-    ctx.font = '11px system-ui';
-    ctx.fillText('AWP дуэль. Жертва: ' + (victim.alive ? 'жива' : 'уничтожена'), 10, H-22);
-    ctx.fillText('Зум: ' + (zoomed ? 'включён (ПКМ — выключить)' : 'выкл. (ПКМ — включить)'), 10, H-10);
-  }
-
-  function draw() {
-    drawWalls();
-    drawVictimSprite();
-    drawGun();
-    drawCrosshair();
-    drawHUD();
-  }
-
-  // ===== Цикл =====
-  let lastTime = performance.now();
-  function loop(now) {
-    const dt = (now - lastTime) / 1000;
-    lastTime = now;
-
-    movePlayer(dt);
-    moveVictim(dt);
-
-    if (!canShoot) {
-      shootCooldown -= dt;
-      if (shootCooldown <= 0) {
-        shootCooldown = 0;
-        canShoot = true;
-      }
-    }
-
-    draw();
-    requestAnimationFrame(loop);
-  }
-  requestAnimationFrame(loop);
-
-  // ===== Сброс =====
-  resetBtn.addEventListener('click', () => {
-    player.x = 4.5;
-    player.y = 4.5;
-    player.angle = 0;
-    victim.x = 19.5;
-    victim.y = 16.5;
-    victim.alive = true;
-    zoomed = false;
-    FOV = FOV_NORMAL;
-    sensCurrent = sensBase;
-    updateProjPlane();
-    log('Раунд сброшен. Позиции и зум сброшены.');
-  });
-
-  log('Прототип загружен. Охотник: WASD + мышь + ЛКМ/ПКМ. Жертва: стрелки. Попадание = ваншот.');
-})();
-</script>
-</body>
-</html>
+  const GRID_COLS = 12;
+  const GRID_ROWS = 10;
+
+  // Конфиг техники
+  const UNITS_CONFIG = [
+    { id
