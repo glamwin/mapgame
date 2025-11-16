@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
-  <title>Тестовая карта Украины (SVG + JS)</title>
+  <title>Мини-стратегия: ДНР / ЛНР — прототип</title>
   <style>
     * {
       box-sizing: border-box;
@@ -12,7 +12,7 @@
       margin: 0;
       padding: 0;
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: #0f172a;
+      background: #020617;
       color: #e5e7eb;
       display: flex;
       flex-direction: column;
@@ -21,7 +21,7 @@
     }
 
     header {
-      padding: 16px 20px 0;
+      padding: 16px 16px 8px;
       text-align: center;
     }
 
@@ -32,57 +32,149 @@
     }
 
     p.subtitle {
-      margin: 6px 0 0;
+      margin: 4px 0 0;
       font-size: 12px;
       color: #9ca3af;
     }
 
-    .map-wrapper {
-      margin: 16px auto;
-      width: 95vw;
-      max-width: 900px;
-      background: #020617;
+    .layout {
+      width: 100%;
+      max-width: 960px;
+      padding: 12px 16px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .top-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+
+    button {
+      background: #1d4ed8;
+      color: #e5e7eb;
+      border: 1px solid #1d4ed8;
+      border-radius: 999px;
+      padding: 6px 12px;
+      font-size: 12px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: background 0.15s ease-out, transform 0.1s ease-out, box-shadow 0.1s ease-out;
+    }
+
+    button.secondary {
+      background: #0f172a;
+      border-color: #334155;
+    }
+
+    button.active {
+      background: #16a34a;
+      border-color: #16a34a;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 8px 16px rgba(0,0,0,0.35);
+    }
+
+    button:active {
+      transform: translateY(0);
+      box-shadow: none;
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      font-size: 11px;
+      color: #9ca3af;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      border: 1px solid #020617;
+    }
+
+    .dot-lnr { background: #1d4ed8; }
+    .dot-dnr { background: #b91c1c; }
+    .dot-neutral { background: #4b5563; }
+    .dot-army-lnr { background: #38bdf8; }
+    .dot-army-dnr { background: #f97316; }
+
+    .map-shell {
+      background: radial-gradient(circle at top, #0b1120 0, #020617 50%, #000 100%);
       border-radius: 16px;
-      padding: 16px;
+      border: 1px solid #1f2937;
       box-shadow: 0 20px 40px rgba(0,0,0,0.6);
-      border: 1px solid #1e293b;
+      padding: 12px;
     }
 
     svg {
+      display: block;
       width: 100%;
       height: auto;
-      display: block;
-    }
-
-    .border-outline {
-      fill: #020617;
-      stroke: #475569;
-      stroke-width: 2;
     }
 
     .region {
       stroke: #020617;
-      stroke-width: 1.5;
+      stroke-width: 2;
       cursor: pointer;
-      transition: fill 0.15s ease-out, stroke-width 0.15s ease-out, transform 0.15s ease-out;
-    }
-
-    .region.default-fill {
-      fill: #1d4ed8;
+      transition: fill 0.15s ease-out, stroke-width 0.15s ease-out;
     }
 
     .region:hover {
-      fill: #f59e0b;
-      stroke-width: 2.4;
+      stroke-width: 3;
     }
 
-    .region.selected {
-      fill: #16a34a !important;
-      stroke-width: 2.4;
+    .river {
+      fill: #0ea5e9;
+      opacity: 0.9;
     }
 
-    .city-label {
-      font-size: 11px;
+    .road {
+      stroke: #9ca3af;
+      stroke-width: 4;
+      stroke-linecap: round;
+      opacity: 0.85;
+    }
+
+    .bridge {
+      stroke: #facc15;
+      stroke-width: 5;
+      stroke-linecap: round;
+      cursor: pointer;
+      transition: stroke 0.15s ease-out, stroke-width 0.15s ease-out, opacity 0.15s ease-out;
+    }
+
+    .bridge.destroyed {
+      stroke: #ef4444;
+      opacity: 0.7;
+      stroke-dasharray: 6 4;
+    }
+
+    .bridge-label {
+      font-size: 10px;
       fill: #e5e7eb;
       pointer-events: none;
       text-shadow: 0 0 3px #000;
@@ -91,293 +183,528 @@
     .city-dot {
       fill: #f97316;
       stroke: #020617;
-      stroke-width: 1;
+      stroke-width: 1.4;
+    }
+
+    .village-dot {
+      fill: #22c55e;
+      stroke: #020617;
+      stroke-width: 1.2;
+    }
+
+    .label {
+      font-size: 11px;
+      fill: #e5e7eb;
+      pointer-events: none;
+      text-shadow: 0 0 4px #000;
+    }
+
+    .side-label {
+      font-size: 12px;
+      fill: #9ca3af;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
       pointer-events: none;
     }
 
-    .info {
-      margin-top: 8px;
-      font-size: 13px;
-      color: #9ca3af;
-      text-align: center;
+    .army {
+      stroke: #020617;
+      stroke-width: 2;
+      pointer-events: none;
     }
 
-    .info span {
+    .army-lnr {
+      fill: #38bdf8;
+    }
+
+    .army-dnr {
+      fill: #f97316;
+    }
+
+    .army-ring {
+      fill: none;
+      stroke: rgba(15,23,42,0.8);
+      stroke-width: 6;
+    }
+
+    .info-panel {
+      margin-top: 6px;
+      font-size: 12px;
+      color: #9ca3af;
+      padding: 8px 10px;
+      border-radius: 10px;
+      background: rgba(15,23,42,0.8);
+      border: 1px solid #1f2937;
+    }
+
+    .info-panel strong {
       color: #e5e7eb;
       font-weight: 500;
     }
 
-    .log {
-      margin-top: 8px;
+    .log-panel {
+      margin-top: 6px;
       font-size: 11px;
       color: #6b7280;
-      text-align: center;
       font-family: monospace;
-      max-width: 900px;
-      padding: 0 16px 16px;
-      word-break: break-word;
+      background: rgba(15,23,42,0.7);
+      border-radius: 10px;
+      padding: 6px 10px;
+      border: 1px solid #111827;
+      max-height: 90px;
+      overflow-y: auto;
+      white-space: pre-line;
     }
   </style>
 </head>
 <body>
-  <header>
-    <h1>Тестовая SVG-карта Украины для стратегии</h1>
-    <p class="subtitle">
-      Упрощённый контур и области. Клик по области — выбор. Пример для GitHub Pages.
-    </p>
-  </header>
+<header>
+  <h1>Мини-стратегия: ДНР / ЛНР — прототип поля</h1>
+  <p class="subtitle">Квадраты-регионы, выдуманная река, дороги, мосты, города, сёла и войска.</p>
+</header>
 
-  <div class="map-wrapper">
-    <!--
-      ВНИМАНИЕ:
-      Контур и границы областей здесь УПРОЩЁННЫЕ.
-      Это демонстрация структуры, а не точная политическая карта.
-      Когда понадобится реальная — просто заменишь весь <svg> на настоящий.
-    -->
-    <svg viewBox="0 0 800 500" xmlns="http://www.w3.org/2000/svg">
-
-      <!-- Общий условный контур Украины -->
-      <path
-        id="ukraine_border"
-        class="border-outline"
-        d="
-          M 80 220
-          L 140 160
-          L 240 130
-          L 340 110
-          L 430 120
-          L 520 130
-          L 610 140
-          L 700 180
-          L 740 230
-          L 720 280
-          L 690 320
-          L 630 360
-          L 560 380
-          L 470 390
-          L 380 380
-          L 300 370
-          L 220 350
-          L 160 320
-          L 120 280
-          L 80 240
-          Z
-        "
-      />
-
-      <!-- Области (упрощённые регионы, пример структурно) -->
-      <!-- Львовская область / Lviv -->
-      <path
-        id="region_lviv"
-        class="region default-fill"
-        data-name="Львовская область"
-        d="
-          M 80 240
-          L 80 220
-          L 140 160
-          L 190 170
-          L 210 210
-          L 200 250
-          L 160 270
-          Z
-        "
-      />
-
-      <!-- Волынь / условно западный север -->
-      <path
-        id="region_volyn"
-        class="region default-fill"
-        data-name="Северо-запад (условно Волынь)"
-        d="
-          M 140 160
-          L 220 150
-          L 240 190
-          L 210 210
-          L 190 170
-          Z
-        "
-      />
-
-      <!-- Киевский регион (условно центр-север) -->
-      <path
-        id="region_kyiv"
-        class="region default-fill"
-        data-name="Киевский регион"
-        d="
-          M 220 150
-          L 320 130
-          L 360 170
-          L 330 210
-          L 270 220
-          L 240 190
-          Z
-        "
-      />
-
-      <!-- Центральный/Днепропетровский регион -->
-      <path
-        id="region_dnipro"
-        class="region default-fill"
-        data-name="Центр / Днепропетровский регион"
-        d="
-          M 240 190
-          L 270 220
-          L 330 210
-          L 380 230
-          L 360 280
-          L 300 290
-          L 240 260
-          L 200 250
-          L 210 210
-          Z
-        "
-      />
-
-      <!-- Восток / Харьковский регион -->
-      <path
-        id="region_kharkiv"
-        class="region default-fill"
-        data-name="Восток / Харьковский регион"
-        d="
-          M 380 230
-          L 430 220
-          L 500 230
-          L 520 260
-          L 510 300
-          L 450 310
-          L 400 300
-          L 360 280
-          Z
-        "
-      />
-
-      <!-- Юг / Одесса + Николаев + часть побережья -->
-      <path
-        id="region_odesa"
-        class="region default-fill"
-        data-name="Юг / Одесса-Николаевский регион"
-        d="
-          M 200 250
-          L 240 260
-          L 300 290
-          L 330 320
-          L 300 350
-          L 220 350
-          L 160 320
-          L 160 270
-          Z
-        "
-      />
-
-      <!-- Юго-восток / Донецк-Приазовье (условно) -->
-      <path
-        id="region_donetsk"
-        class="region default-fill"
-        data-name="Юго-восток / Донецкий регион"
-        d="
-          M 300 290
-          L 360 280
-          L 400 300
-          L 450 310
-          L 480 330
-          L 470 360
-          L 380 380
-          L 330 350
-          L 330 320
-          Z
-        "
-      />
-
-      <!-- Условная Крымская зона (как регион, политически не лезем, чисто география) -->
-      <path
-        id="region_crimea"
-        class="region default-fill"
-        data-name="Крымский регион (условно)"
-        d="
-          M 380 380
-          L 470 360
-          L 530 370
-          L 560 380
-          L 540 410
-          L 500 430
-          L 440 420
-          L 400 410
-          Z
-        "
-      />
-
-      <!-- Пара "городов" для примера -->
-
-      <!-- Львов -->
-      <circle class="city-dot" cx="170" cy="230" r="3" />
-      <text class="city-label" x="178" y="226">Львов</text>
-
-      <!-- Киев -->
-      <circle class="city-dot" cx="285" cy="200" r="3" />
-      <text class="city-label" x="292" y="196">Киев</text>
-
-      <!-- Днепр -->
-      <circle class="city-dot" cx="310" cy="260" r="3" />
-      <text class="city-label" x="318" y="256">Днепр</text>
-
-      <!-- Харьков -->
-      <circle class="city-dot" cx="455" cy="245" r="3" />
-      <text class="city-label" x="463" y="241">Харьков</text>
-
-      <!-- Одесса -->
-      <circle class="city-dot" cx="240" cy="320" r="3" />
-      <text class="city-label" x="248" y="316">Одесса</text>
-
-      <!-- Донецк (условно) -->
-      <circle class="city-dot" cx="420" cy="330" r="3" />
-      <text class="city-label" x="428" y="326">Донецк</text>
-
-      <!-- Симферополь (условно) -->
-      <circle class="city-dot" cx="470" cy="395" r="3" />
-      <text class="city-label" x="478" y="391">Симферополь</text>
-
-    </svg>
-
-    <div class="info">
-      Выбранный регион: <span id="selectedRegion">нет</span>
+<div class="layout">
+  <div class="top-bar">
+    <div class="controls">
+      <button id="turnLNR" class="active">Ход ЛНР</button>
+      <button id="turnDNR" class="secondary">Ход ДНР</button>
+      <button id="resetBtn" class="secondary">Сброс</button>
     </div>
-    <div class="log" id="log">Лог пуст. Кликни на область на карте.</div>
+    <div class="legend">
+      <div class="legend-item">
+        <span class="dot dot-lnr"></span> ЛНР
+      </div>
+      <div class="legend-item">
+        <span class="dot dot-dnr"></span> ДНР
+      </div>
+      <div class="legend-item">
+        <span class="dot dot-neutral"></span> Нейтральный сектор
+      </div>
+      <div class="legend-item">
+        <span class="dot dot-army-lnr"></span> Войска ЛНР
+      </div>
+      <div class="legend-item">
+        <span class="dot dot-army-dnr"></span> Войска ДНР
+      </div>
+    </div>
   </div>
 
-  <script>
-    (function () {
-      const regions = document.querySelectorAll('.region');
-      const selectedRegionSpan = document.getElementById('selectedRegion');
-      const logEl = document.getElementById('log');
+  <div class="map-shell">
+    <!-- Игровое поле: 6 крупных участков, река, дороги, мосты, города, сёла -->
+    <svg viewBox="0 0 900 450" xmlns="http://www.w3.org/2000/svg">
 
-      let selectedId = null;
+      <!-- Выдуманная река: идёт по вертикали между центральным и правым сектором -->
+      <path
+        class="river"
+        d="
+          M 480 20
+          C 490 80, 470 120, 490 170
+          C 510 220, 470 260, 495 310
+          C 520 360, 490 400, 500 430
+          L 540 430
+          C 535 380, 550 340, 530 300
+          C 510 260, 540 210, 525 170
+          C 510 130, 530 80, 520 20
+          Z
+        "
+      />
 
-      function log(message) {
-        console.log(message);
-        logEl.textContent = message;
+      <!-- Дороги (схематично): соединяют центры регионов -->
+      <!-- ЛНР верх -> центр верх / ЛНР низ -> центр низ / центр -> ДНР по мостам -->
+      <line class="road" x1="150" y1="150" x2="350" y2="150" />
+      <line class="road" x1="150" y1="320" x2="350" y2="320" />
+      <line class="road" x1="550" y1="150" x2="750" y2="150" />
+      <line class="road" x1="550" y1="320" x2="750" y2="320" />
+      <!-- Вертикальные дороги в центральной колонке -->
+      <line class="road" x1="350" y1="150" x2="350" y2="320" />
+      <line class="road" x1="750" y1="150" x2="750" y2="320" />
+
+      <!-- Мосты (поверх реки, между центральными и правыми регионами) -->
+      <line id="bridge_north" class="bridge" x1="450" y1="150" x2="550" y2="150" />
+      <text x="500" y="138" class="bridge-label">Мост (север)</text>
+
+      <line id="bridge_south" class="bridge" x1="450" y1="320" x2="550" y2="320" />
+      <text x="500" y="308" class="bridge-label">Мост (юг)</text>
+
+      <!-- РЕГИОНЫ (6 крупных квадратов) -->
+
+      <!-- ЛНР: верх -->
+      <rect
+        id="region_lnr_north"
+        class="region"
+        x="50"
+        y="70"
+        width="200"
+        height="160"
+        rx="18"
+        ry="18"
+      />
+      <!-- ЛНР: низ -->
+      <rect
+        id="region_lnr_south"
+        class="region"
+        x="50"
+        y="240"
+        width="200"
+        height="160"
+        rx="18"
+        ry="18"
+      />
+
+      <!-- Центр: север -->
+      <rect
+        id="region_mid_north"
+        class="region"
+        x="300"
+        y="70"
+        width="200"
+        height="160"
+        rx="18"
+        ry="18"
+      />
+      <!-- Центр: юг -->
+      <rect
+        id="region_mid_south"
+        class="region"
+        x="300"
+        y="240"
+        width="200"
+        height="160"
+        rx="18"
+        ry="18"
+      />
+
+      <!-- ДНР: верх -->
+      <rect
+        id="region_dnr_north"
+        class="region"
+        x="650"
+        y="70"
+        width="200"
+        height="160"
+        rx="18"
+        ry="18"
+      />
+      <!-- ДНР: низ -->
+      <rect
+        id="region_dnr_south"
+        class="region"
+        x="650"
+        y="240"
+        width="200"
+        height="160"
+        rx="18"
+        ry="18"
+      />
+
+      <!-- Подписи регионов / “флаговые” названия -->
+      <text x="90" y="90" class="side-label">ЛНР — северный сектор</text>
+      <text x="90" y="260" class="side-label">ЛНР — южный сектор</text>
+
+      <text x="320" y="90" class="side-label">Нейтральная полоса — север</text>
+      <text x="320" y="260" class="side-label">Нейтральная полоса — юг</text>
+
+      <text x="680" y="90" class="side-label">ДНР — северный сектор</text>
+      <text x="680" y="260" class="side-label">ДНР — южный сектор</text>
+
+      <!-- ГОРОДА (крупные точки) -->
+      <!-- ЛНР: Луганск (условно в северном секторе) -->
+      <circle class="city-dot" cx="150" cy="150" r="5" />
+      <text class="label" x="162" y="146">Луганск</text>
+
+      <!-- ЛНР: условное село -->
+      <circle class="village-dot" cx="120" cy="210" r="3" />
+      <text class="label" x="130" y="208">с. Северное</text>
+
+      <!-- Центр: городок на реке -->
+      <circle class="city-dot" cx="350" cy="150" r="5" />
+      <text class="label" x="362" y="146">Речной город</text>
+
+      <!-- Центр: село -->
+      <circle class="village-dot" cx="330" cy="310" r="3" />
+      <text class="label" x="340" y="306">с. Перекрёсток</text>
+
+      <!-- ДНР: Донецк (условно) -->
+      <circle class="city-dot" cx="750" cy="150" r="5" />
+      <text class="label" x="762" y="146">Донецк</text>
+
+      <!-- ДНР: село -->
+      <circle class="village-dot" cx="730" cy="310" r="3" />
+      <text class="label" x="740" y="306">с. Шахтёрское</text>
+
+      <!-- Аэродром (просто значок) в южном центральном секторе -->
+      <polygon
+        points="360,330 372,318 384,330 372,342"
+        fill="#e5e7eb"
+        stroke="#020617"
+        stroke-width="1.2"
+      />
+      <text class="label" x="390" y="332">Аэродром</text>
+
+      <!-- ВОЙСКА (армейские маркеры) -->
+      <!-- ЛНР армия: старт в южном секторе ЛНР -->
+      <circle id="army_lnr_ring" class="army-ring" cx="150" cy="320" r="16" />
+      <circle id="army_lnr" class="army army-lnr" cx="150" cy="320" r="10" />
+
+      <!-- ДНР армия: старт в северном секторе ДНР -->
+      <circle id="army_dnr_ring" class="army-ring" cx="750" cy="150" r="16" />
+      <circle id="army_dnr" class="army army-dnr" cx="750" cy="150" r="10" />
+
+    </svg>
+  </div>
+
+  <div class="info-panel">
+    <div><strong>Ход:</strong> <span id="turnInfo">ЛНР</span></div>
+    <div><strong>Выберите:</strong> нажми на регион, куда твоя армия может пойти по дороге/мосту. Если регион принадлежит противнику или нейтрален — будет захват.</div>
+    <div><strong>Мосты:</strong> клик по жёлтой линии моста меняет состояние (целый / разрушен). Если мост разрушен — переход по нему невозможен.</div>
+  </div>
+
+  <div class="log-panel" id="log">
+    Игра загружена. По умолчанию ход ЛНР. Кликни по соседнему региону, чтобы сделать перемещение.
+  </div>
+</div>
+
+<script>
+  (function () {
+    // ------ БАЗОВОЕ СОСТОЯНИЕ ------
+
+    const owners = {
+      LNR: "LNR",
+      DNR: "DNR",
+      NEUTRAL: "NEUTRAL",
+    };
+
+    // Владелец каждого региона
+    let regionOwners = {
+      region_lnr_north: owners.LNR,
+      region_lnr_south: owners.LNR,
+      region_mid_north: owners.NEUTRAL,
+      region_mid_south: owners.NEUTRAL,
+      region_dnr_north: owners.DNR,
+      region_dnr_south: owners.DNR,
+    };
+
+    // Центры регионов для позиционирования войск
+    const regionCenters = {
+      region_lnr_north: { x: 150, y: 150 },
+      region_lnr_south: { x: 150, y: 320 },
+      region_mid_north: { x: 400, y: 150 },
+      region_mid_south: { x: 400, y: 320 },
+      region_dnr_north: { x: 750, y: 150 },
+      region_dnr_south: { x: 750, y: 320 },
+    };
+
+    // Соседство регионов (по земле/дорогам, без учёта мостов)
+    const adjacencyBase = {
+      region_lnr_north: ["region_mid_north", "region_lnr_south"],
+      region_lnr_south: ["region_mid_south", "region_lnr_north"],
+      region_mid_north: ["region_lnr_north", "region_mid_south", "region_dnr_north"], // мост север
+      region_mid_south: ["region_lnr_south", "region_mid_north", "region_dnr_south"], // мост юг
+      region_dnr_north: ["region_mid_north", "region_dnr_south"],
+      region_dnr_south: ["region_mid_south", "region_dnr_north"],
+    };
+
+    // Состояние мостов
+    const bridges = {
+      north: { id: "bridge_north", destroyed: false },
+      south: { id: "bridge_south", destroyed: false },
+    };
+
+    // Позиция армий (по ID региона)
+    let armyPositions = {
+      LNR: "region_lnr_south",
+      DNR: "region_dnr_north",
+    };
+
+    // Чей ход
+    let currentSide = "LNR"; // "LNR" или "DNR"
+
+    // ------ DOM ЭЛЕМЕНТЫ ------
+
+    const turnLNRBtn = document.getElementById("turnLNR");
+    const turnDNRBtn = document.getElementById("turnDNR");
+    const resetBtn = document.getElementById("resetBtn");
+    const turnInfo = document.getElementById("turnInfo");
+    const logEl = document.getElementById("log");
+
+    const armyLNR = document.getElementById("army_lnr");
+    const armyLNRRing = document.getElementById("army_lnr_ring");
+    const armyDNR = document.getElementById("army_dnr");
+    const armyDNRRing = document.getElementById("army_dnr_ring");
+
+    const regionEls = Array.from(document.querySelectorAll(".region"));
+    const bridgeNorthEl = document.getElementById("bridge_north");
+    const bridgeSouthEl = document.getElementById("bridge_south");
+
+    // ------ УТИЛИТЫ ------
+
+    function log(message) {
+      const time = new Date().toLocaleTimeString("ru-RU", { hour12: false });
+      const current = logEl.textContent.trim();
+      const newLine = `[${time}] ${message}`;
+      logEl.textContent = current
+        ? newLine + "\n" + current
+        : newLine;
+    }
+
+    function setTurn(side) {
+      currentSide = side;
+      turnInfo.textContent = side;
+      if (side === "LNR") {
+        turnLNRBtn.classList.add("active");
+        turnLNRBtn.classList.remove("secondary");
+        turnDNRBtn.classList.remove("active");
+        turnDNRBtn.classList.add("secondary");
+      } else {
+        turnDNRBtn.classList.add("active");
+        turnDNRBtn.classList.remove("secondary");
+        turnLNRBtn.classList.remove("active");
+        turnLNRBtn.classList.add("secondary");
+      }
+      log(`Ход стороны: ${side}`);
+    }
+
+    function updateRegionColors() {
+      regionEls.forEach((el) => {
+        const id = el.id;
+        const owner = regionOwners[id];
+        if (owner === owners.LNR) {
+          el.setAttribute("fill", "#1d4ed8");
+        } else if (owner === owners.DNR) {
+          el.setAttribute("fill", "#b91c1c");
+        } else {
+          el.setAttribute("fill", "#4b5563");
+        }
+      });
+    }
+
+    function moveArmy(side, targetRegionId) {
+      const fromRegionId = armyPositions[side];
+      if (fromRegionId === targetRegionId) {
+        return;
       }
 
-      regions.forEach(region => {
-        region.addEventListener('click', () => {
-          // Снимаем выделение со старого
-          if (selectedId) {
-            const old = document.getElementById(selectedId);
-            if (old) old.classList.remove('selected');
-          }
+      const neighbors = getAvailableNeighbors(fromRegionId);
+      if (!neighbors.includes(targetRegionId)) {
+        log(`Перемещение недоступно: регион не соседний или мост разрушен.`);
+        return;
+      }
 
-          // Выделяем новый
-          selectedId = region.id;
-          region.classList.add('selected');
+      armyPositions[side] = targetRegionId;
+      const center = regionCenters[targetRegionId];
 
-          const name = region.dataset.name || region.id;
-          selectedRegionSpan.textContent = name;
+      const armyEl = side === "LNR" ? armyLNR : armyDNR;
+      const ringEl = side === "LNR" ? armyLNRRing : armyDNRRing;
+      armyEl.setAttribute("cx", center.x);
+      armyEl.setAttribute("cy", center.y);
+      ringEl.setAttribute("cx", center.x);
+      ringEl.setAttribute("cy", center.y);
 
-          log(`Вы выбрали регион: ${name} (id: ${region.id})`);
-        });
+      const prevOwner = regionOwners[targetRegionId];
+      if (prevOwner !== side) {
+        regionOwners[targetRegionId] = side;
+        updateRegionColors();
+        log(
+          `${side} захватывает регион ${targetRegionId.replace("region_", "")} (до этого: ${prevOwner}).`
+        );
+      } else {
+        log(`${side} перемещает войска в уже контролируемый регион ${targetRegionId.replace("region_", "")}.`);
+      }
+    }
+
+    function getAvailableNeighbors(regionId) {
+      const baseNeighbors = adjacencyBase[regionId] || [];
+      // фильтруем по мостам
+      return baseNeighbors.filter((neighborId) => {
+        // north bridge: mid_north <-> dnr_north
+        if (
+          (regionId === "region_mid_north" && neighborId === "region_dnr_north") ||
+          (regionId === "region_dnr_north" && neighborId === "region_mid_north")
+        ) {
+          if (bridges.north.destroyed) return false;
+        }
+        // south bridge: mid_south <-> dnr_south
+        if (
+          (regionId === "region_mid_south" && neighborId === "region_dnr_south") ||
+          (regionId === "region_dnr_south" && neighborId === "region_mid_south")
+        ) {
+          if (bridges.south.destroyed) return false;
+        }
+        return true;
       });
+    }
 
-      log('Готово. Кликни по области, чтобы протестировать логику выбора.');
-    })();
-  </script>
+    function toggleBridge(which) {
+      const b = bridges[which];
+      b.destroyed = !b.destroyed;
+      const el = which === "north" ? bridgeNorthEl : bridgeSouthEl;
+      if (b.destroyed) {
+        el.classList.add("destroyed");
+        log(`Мост (${which === "north" ? "северный" : "южный"}) уничтожен. Переход по нему невозможен.`);
+      } else {
+        el.classList.remove("destroyed");
+        log(`Мост (${which === "north" ? "северный" : "южный"}) восстановлен. Переход снова возможен.`);
+      }
+    }
+
+    function resetGame() {
+      regionOwners = {
+        region_lnr_north: owners.LNR,
+        region_lnr_south: owners.LNR,
+        region_mid_north: owners.NEUTRAL,
+        region_mid_south: owners.NEUTRAL,
+        region_dnr_north: owners.DNR,
+        region_dnr_south: owners.DNR,
+      };
+      armyPositions = {
+        LNR: "region_lnr_south",
+        DNR: "region_dnr_north",
+      };
+
+      const lnrCenter = regionCenters[armyPositions.LNR];
+      const dnrCenter = regionCenters[armyPositions.DNR];
+
+      armyLNR.setAttribute("cx", lnrCenter.x);
+      armyLNR.setAttribute("cy", lnrCenter.y);
+      armyLNRRing.setAttribute("cx", lnrCenter.x);
+      armyLNRRing.setAttribute("cy", lnrCenter.y);
+
+      armyDNR.setAttribute("cx", dnrCenter.x);
+      armyDNR.setAttribute("cy", dnrCenter.y);
+      armyDNRRing.setAttribute("cx", dnrCenter.x);
+      armyDNRRing.setAttribute("cy", dnrCenter.y);
+
+      bridges.north.destroyed = false;
+      bridges.south.destroyed = false;
+      bridgeNorthEl.classList.remove("destroyed");
+      bridgeSouthEl.classList.remove("destroyed");
+
+      updateRegionColors();
+      setTurn("LNR");
+      log(`Сброс игры. ЛНР стартует в южном секторе, ДНР — в северном. Центральные регионы нейтральны.`);
+    }
+
+    // ------ ОБРАБОТЧИКИ СОБЫТИЙ ------
+
+    regionEls.forEach((el) => {
+      el.addEventListener("click", () => {
+        const targetRegionId = el.id;
+        moveArmy(currentSide, targetRegionId);
+      });
+    });
+
+    bridgeNorthEl.addEventListener("click", () => toggleBridge("north"));
+    bridgeSouthEl.addEventListener("click", () => toggleBridge("south"));
+
+    turnLNRBtn.addEventListener("click", () => setTurn("LNR"));
+    turnDNRBtn.addEventListener("click", () => setTurn("DNR"));
+    resetBtn.addEventListener("click", () => resetGame());
+
+    // ------ ИНИЦИАЛИЗАЦИЯ ------
+    updateRegionColors();
+    setTurn("LNR");
+    log(`Поле загружено. ЛНР контролирует левую колонку, ДНР — правую. Центр — нейтральный. Войска ходят по соседним регионам, учитывая мосты и дороги.`);
+  })();
+</script>
 </body>
 </html>
