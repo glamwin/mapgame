@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
-  <title>Шашки + PvP арена</title>
+  <title>Шашки + мини Doom 3D</title>
   <style>
     * { box-sizing: border-box; }
     body {
@@ -32,43 +32,19 @@
     }
     .layout {
       width: 100%;
-      max-width: 900px;
+      max-width: 960px;
       padding: 8px 16px 24px;
       display: flex;
       flex-direction: column;
-      gap: 12px;
+      gap: 10px;
       align-items: center;
     }
-    .board-wrapper {
-      background: radial-gradient(circle at top, #0b1120 0, #020617 50%, #000 100%);
-      padding: 12px;
-      border-radius: 16px;
-      border: 1px solid #1f2937;
-      box-shadow: 0 18px 36px rgba(0,0,0,0.7);
-    }
-    #board {
-      border: 2px solid #1f2937;
-      border-radius: 8px;
-    }
-    .info {
-      font-size: 12px;
-      color: #9ca3af;
-      text-align: center;
-    }
-    .info strong { color: #e5e7eb; }
-    .log {
-      font-size: 11px;
-      color: #6b7280;
-      font-family: monospace;
-      background: rgba(15,23,42,0.85);
-      border-radius: 10px;
-      padding: 6px 10px;
-      border: 1px solid #111827;
-      max-height: 120px;
-      overflow-y: auto;
-      white-space: pre-line;
-      width: 100%;
-      max-width: 900px;
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      justify-content: center;
     }
     button {
       background: #1d4ed8;
@@ -87,125 +63,157 @@
       background: #0f172a;
       border-color: #334155;
     }
+    button.active {
+      background: #16a34a;
+      border-color: #16a34a;
+    }
     button:hover {
       transform: translateY(-1px);
       box-shadow: 0 6px 12px rgba(0,0,0,0.4);
     }
 
-    /* Оверлей арены */
-    #battleOverlay {
-      position: fixed;
-      inset: 0;
-      background: rgba(15,23,42,0.95);
-      display: none;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      z-index: 999;
-    }
-    #battleOverlay.visible {
-      display: flex;
-    }
-    #battleInfo {
-      font-size: 13px;
-      color: #e5e7eb;
-      margin-bottom: 8px;
-      text-align: center;
-    }
-    #battleCanvas {
-      background: #020617;
+    .container {
+      background: radial-gradient(circle at top, #0b1120 0, #020617 50%, #000 100%);
+      padding: 12px;
       border-radius: 16px;
       border: 1px solid #1f2937;
-      box-shadow: 0 18px 36px rgba(0,0,0,0.8);
+      box-shadow: 0 18px 36px rgba(0,0,0,0.7);
     }
-    #battleHint {
-      margin-top: 6px;
-      font-size: 11px;
+
+    canvas {
+      display: block;
+      border-radius: 10px;
+      border: 1px solid #111827;
+      background: #020617;
+    }
+
+    #checkersCanvas {
+      width: 480px;
+      height: 480px;
+    }
+    #doomCanvas {
+      width: 640px;
+      height: 360px;
+    }
+
+    .info {
+      font-size: 12px;
       color: #9ca3af;
       text-align: center;
+      max-width: 960px;
     }
-    .badge {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      padding: 0 6px;
-      font-size: 10px;
-      border-radius: 999px;
-      background: #0f172a;
-      border: 1px solid #1f2937;
-      margin: 0 4px;
+    .info strong { color: #e5e7eb; }
+
+    .log {
+      font-size: 11px;
+      color: #6b7280;
+      font-family: monospace;
+      background: rgba(15,23,42,0.85);
+      border-radius: 10px;
+      padding: 6px 10px;
+      border: 1px solid #111827;
+      max-height: 120px;
+      overflow-y: auto;
+      white-space: pre-line;
+      width: 100%;
+      max-width: 960px;
     }
   </style>
 </head>
 <body>
 <header>
-  <h1>Шашки с PvP-ареной</h1>
-  <p class="subtitle">Попытка побить шашку запускает бой 1×1 сверху. Победитель остаётся на доске.</p>
+  <h1>Шашки + мини Doom-подобная 3D-арена</h1>
+  <p class="subtitle">2D шашки + raycasting-псевдо-3D с оружием и целью. Всё без библиотек.</p>
 </header>
 
 <div class="layout">
-  <div class="board-wrapper">
-    <canvas id="board" width="480" height="480"></canvas>
+  <div class="controls">
+    <button id="modeCheckers" class="active">Режим шашек</button>
+    <button id="modeDoom" class="secondary">Режим 3D арены</button>
+    <button id="resetCheckers" class="secondary">Сбросить шашки</button>
   </div>
-  <div class="info">
-    <div>Ход: <strong><span id="turnText">Белые</span></strong></div>
-    <div>Игроки ходят мышкой: клик по своей шашке → клик по клетке. При взятии запускается бой.</div>
-    <div style="margin-top:4px;">
-      <button id="resetBtn" class="secondary">Сбросить партию</button>
-    </div>
-  </div>
-  <div class="log" id="log">Игра загружена. Ход белых.</div>
-</div>
 
-<!-- Оверлей арены -->
-<div id="battleOverlay">
-  <div id="battleInfo">
-    PvP-бой за шашку. <br/>
-    <span class="badge">Игрок 1 (атакующий): W A S D + Space (стрельба)</span><br/>
-    <span class="badge">Игрок 2 (защищающийся): I J K L + Enter (стрельба)</span><br/>
-    В круге безопасной зоны дамаг не идёт. Вне круга здоровье тает.
+  <div class="container">
+    <canvas id="checkersCanvas" width="480" height="480"></canvas>
+    <canvas id="doomCanvas" width="640" height="360" style="display:none;"></canvas>
   </div>
-  <canvas id="battleCanvas" width="640" height="400"></canvas>
-  <div id="battleHint">Ждите, пока один умрёт. После этого бой закроется и шашка останется/умрёт.</div>
+
+  <div class="info" id="infoText">
+    <div><strong>Шашки:</strong> клик по своей шашке → клик по диагональной чёрной клетке (без боёв, просто ход).</div>
+    <div><strong>3D арена:</strong> Игрок 1 — W/S вперёд/назад, A/D влево/вправо (страйф), Q/E поворот, Space — выстрел. Игрок 2 — стрелки двигают цель. Попадания по цели снимают HP.</div>
+  </div>
+
+  <div class="log" id="logBox">Готово. Сейчас включён режим шашек.</div>
 </div>
 
 <script>
 (function() {
-  // ==========================
-  // ЛОГ УТИЛИТА
-  // ==========================
-  const logEl = document.getElementById('log');
+  const logBox = document.getElementById('logBox');
   function log(msg) {
     const t = new Date().toLocaleTimeString('ru-RU', { hour12: false });
-    const text = `[${t}] ${msg}`;
-    logEl.textContent = text + '\n' + logEl.textContent;
+    const line = `[${t}] ${msg}`;
+    logBox.textContent = line + "\n" + logBox.textContent;
   }
 
-  // ==========================
-  // ШАШКИ: МОДЕЛЬ
-  // ==========================
-  const boardCanvas = document.getElementById('board');
-  const bctx = boardCanvas.getContext('2d');
-  const SIZE = 8;
-  const CELL = boardCanvas.width / SIZE;
+  const modeCheckersBtn = document.getElementById('modeCheckers');
+  const modeDoomBtn = document.getElementById('modeDoom');
+  const resetCheckersBtn = document.getElementById('resetCheckers');
+  const infoText = document.getElementById('infoText');
+  const checkersCanvas = document.getElementById('checkersCanvas');
+  const doomCanvas = document.getElementById('doomCanvas');
 
-  // board[y][x] = {color:'w'|'b', king:boolean}
+  let mode = 'checkers';
+
+  function setMode(newMode) {
+    mode = newMode;
+    if (newMode === 'checkers') {
+      modeCheckersBtn.classList.add('active');
+      modeCheckersBtn.classList.remove('secondary');
+      modeDoomBtn.classList.remove('active');
+      modeDoomBtn.classList.add('secondary');
+      checkersCanvas.style.display = 'block';
+      doomCanvas.style.display = 'none';
+      infoText.innerHTML =
+        '<div><strong>Шашки:</strong> клик по своей шашке → клик по диагональной чёрной клетке (упрощённые правила, без боёв).</div>' +
+        '<div><strong>3D арена:</strong> переключись в режим 3D, чтобы протестировать псевдо-Doom.</div>';
+      log('Включён режим шашек.');
+    } else {
+      modeDoomBtn.classList.add('active');
+      modeDoomBtn.classList.remove('secondary');
+      modeCheckersBtn.classList.remove('active');
+      modeCheckersBtn.classList.add('secondary');
+      checkersCanvas.style.display = 'none';
+      doomCanvas.style.display = 'block';
+      infoText.innerHTML =
+        '<div><strong>3D арена:</strong> Игрок 1 — W/S вперёд/назад, A/D влево/вправо (страйф), Q/E поворот, Space — выстрел.</div>' +
+        '<div>Игрок 2 — стрелки ←↑↓→ двигают цель. Попадания по цели снимают HP. **Без хила**.</div>';
+      log('Включён режим 3D арены.');
+    }
+  }
+
+  modeCheckersBtn.addEventListener('click', () => setMode('checkers'));
+  modeDoomBtn.addEventListener('click', () => setMode('doom'));
+
+  // ========================
+  // ШАШКИ (упрощённо)
+  // ========================
+  const bctx = checkersCanvas.getContext('2d');
+  const SIZE = 8;
+  const CELL = checkersCanvas.width / SIZE;
+
+  // board[y][x] = {color:'w'|'b', king:false}
   let board = [];
-  let currentPlayer = 'w'; // w = белые, b = чёрные
-  let selected = null; // {x,y}
-  let battlePending = null; // контекст боя
-  const turnText = document.getElementById('turnText');
+  let currentPlayer = 'w';
+  let selected = null;
 
   function initBoard() {
     board = [];
     for (let y = 0; y < SIZE; y++) {
       const row = [];
-      for (let x = 0; x < SIZE; x++) {
-        row.push(null);
-      }
+      for (let x = 0; x < SIZE; x++) row.push(null);
       board.push(row);
     }
-    // простая начальная расстановка: чёрные сверху (0-2), белые снизу (5-7)
+    // чёрные сверху (0-2), белые снизу (5-7)
     for (let y = 0; y < 3; y++) {
       for (let x = 0; x < SIZE; x++) {
         if ((x + y) % 2 === 1) {
@@ -222,24 +230,16 @@
     }
     currentPlayer = 'w';
     selected = null;
-    battlePending = null;
-    updateTurnText();
     drawBoard();
   }
 
-  function updateTurnText() {
-    turnText.textContent = currentPlayer === 'w' ? 'Белые' : 'Чёрные';
-  }
-
   function drawBoard() {
-    // клетки
     for (let y = 0; y < SIZE; y++) {
       for (let x = 0; x < SIZE; x++) {
         const dark = (x + y) % 2 === 1;
         bctx.fillStyle = dark ? '#111827' : '#e5e7eb';
         bctx.fillRect(x * CELL, y * CELL, CELL, CELL);
 
-        // подсветка выбранной клетки
         if (selected && selected.x === x && selected.y === y) {
           bctx.fillStyle = 'rgba(250,204,21,0.3)';
           bctx.fillRect(x * CELL, y * CELL, CELL, CELL);
@@ -259,546 +259,398 @@
           bctx.lineWidth = 2;
           bctx.strokeStyle = piece.color === 'w' ? '#e5e7eb' : '#374151';
           bctx.stroke();
-
-          // дамка
-          if (piece.king) {
-            bctx.beginPath();
-            bctx.arc(
-              x * CELL + CELL / 2,
-              y * CELL + CELL / 2,
-              CELL * 0.18,
-              0, Math.PI * 2
-            );
-            bctx.fillStyle = piece.color === 'w' ? '#fbbf24' : '#f97316';
-            bctx.fill();
-          }
         }
       }
     }
   }
 
   function getCellFromEvent(evt) {
-    const rect = boardCanvas.getBoundingClientRect();
+    const rect = checkersCanvas.getBoundingClientRect();
     const x = Math.floor((evt.clientX - rect.left) / CELL);
     const y = Math.floor((evt.clientY - rect.top) / CELL);
     if (x < 0 || x >= SIZE || y < 0 || y >= SIZE) return null;
     return { x, y };
   }
 
-  function isDarkCell(x, y) {
-    return (x + y) % 2 === 1;
-  }
-
   function handleBoardClick(evt) {
-    if (battleActive) return; // во время боя доска не реагирует
+    if (mode !== 'checkers') return;
     const cell = getCellFromEvent(evt);
     if (!cell) return;
     const { x, y } = cell;
-    if (!isDarkCell(x, y)) return;
+    if ((x + y) % 2 === 0) return; // только чёрные клетки
 
     const piece = board[y][x];
-
     if (selected) {
-      // попытка хода/боя
       if (selected.x === x && selected.y === y) {
         selected = null;
         drawBoard();
         return;
       }
-      tryMove(selected.x, selected.y, x, y);
+      tryMoveSimple(selected.x, selected.y, x, y);
       return;
     } else {
-      // выбор своей шашки
       if (piece && piece.color === currentPlayer) {
         selected = { x, y };
         drawBoard();
-        return;
       }
     }
   }
 
-  function tryMove(fromX, fromY, toX, toY) {
+  // упрощённый ход: только на одну диагональ вперёд, без боёв и дамок
+  function tryMoveSimple(fromX, fromY, toX, toY) {
     const piece = board[fromY][fromX];
-    if (!piece) {
-      selected = null;
-      drawBoard();
-      return;
-    }
-    if (board[toY][toX]) {
-      // занято
-      selected = null;
-      drawBoard();
-      return;
-    }
+    if (!piece) { selected = null; drawBoard(); return; }
+    if (board[toY][toX]) { selected = null; drawBoard(); return; }
 
     const dx = toX - fromX;
     const dy = toY - fromY;
-
-    // простое движение на 1 вперёд по диагонали
-    const dir = piece.color === 'w' ? -1 : 1; // белые сверху вниз? у нас белые внизу -> ходят вверх (-1)
     const absDx = Math.abs(dx);
     const absDy = Math.abs(dy);
-
-    // движение без боя
     if (absDx === 1 && absDy === 1) {
-      // для обычной шашки ограничим движение только вперёд
-      if (!piece.king && dy !== dir) {
+      const dir = piece.color === 'w' ? -1 : 1; // белые снизу → ход вверх
+      if (dy !== dir) {
         selected = null;
         drawBoard();
         return;
       }
       board[toY][toX] = piece;
       board[fromY][fromX] = null;
-      maybeKing(piece, toY);
-      endTurn();
-      return;
-    }
-
-    // попытка боя: прыжок через одну клетку по диагонали
-    if (absDx === 2 && absDy === 2) {
-      const midX = fromX + dx / 2;
-      const midY = fromY + dy / 2;
-      const midPiece = board[midY][midX];
-      if (!midPiece || midPiece.color === piece.color) {
-        selected = null;
-        drawBoard();
-        return;
-      }
-      // здесь запускаем PvP вместо автоматического снятия
-      battlePending = {
-        fromX, fromY,
-        midX, midY,
-        toX, toY,
-        attackerColor: piece.color,
-        defenderColor: midPiece.color,
-        attackerIsKing: piece.king,
-        defenderIsKing: midPiece.king
-      };
       selected = null;
+      currentPlayer = currentPlayer === 'w' ? 'b' : 'w';
       drawBoard();
-      startBattle(battlePending);
+      log(`Ход сделан. Теперь ходит ${currentPlayer === 'w' ? 'белые' : 'чёрные'}.`);
       return;
     }
-
-    // иначе ничего
     selected = null;
     drawBoard();
   }
 
-  function maybeKing(piece, y) {
-    if (piece.king) return;
-    if (piece.color === 'w' && y === 0) piece.king = true;
-    if (piece.color === 'b' && y === SIZE - 1) piece.king = true;
-  }
-
-  function endTurn() {
-    currentPlayer = currentPlayer === 'w' ? 'b' : 'w';
-    updateTurnText();
-    drawBoard();
-    log(`Ход передан. Теперь ходит ${currentPlayer === 'w' ? 'Белые' : 'Чёрные'}.`);
-  }
-
-  // результат боя: 'attacker' или 'defender'
-  function resolveBattleResult(result) {
-    if (!battlePending) return;
-    const ctx = battlePending;
-    battlePending = null;
-
-    const attackerPiece = board[ctx.fromY][ctx.fromX];
-    const defenderPiece = board[ctx.midY][ctx.midX];
-
-    if (!attackerPiece || !defenderPiece) {
-      drawBoard();
-      return;
-    }
-
-    if (result === 'attacker') {
-      // атакующий побеждает: обычный шашечный результат
-      board[ctx.midY][ctx.midX] = null;
-      board[ctx.fromY][ctx.fromX] = null;
-      board[ctx.toY][ctx.toX] = attackerPiece;
-      maybeKing(attackerPiece, ctx.toY);
-      log(`Атакующий выигрывает PvP. Шашка ${attackerPiece.color === 'w' ? 'белых' : 'чёрных'} продвигается и бьёт.`);
-      endTurn();
-    } else {
-      // защитник побеждает: атакующая шашка погибает, защищающаяся остаётся
-      board[ctx.fromY][ctx.fromX] = null;
-      // защитник остаётся на месте
-      log(`Защитник выигрывает PvP. Атакующая шашка уничтожена, оборона удержана.`);
-      endTurn();
-    }
-
-    drawBoard();
-  }
-
-  // ==========================
-  // ШАШКИ: ИНИЦИАЛИЗАЦИЯ
-  // ==========================
-  boardCanvas.addEventListener('click', handleBoardClick);
-  document.getElementById('resetBtn').addEventListener('click', () => {
+  checkersCanvas.addEventListener('click', handleBoardClick);
+  resetCheckersBtn.addEventListener('click', () => {
     initBoard();
-    log('Партия сброшена.');
+    log('Шашки сброшены.');
   });
+
   initBoard();
 
-  // ==========================
-  // PVP-АРЕНА
-  // ==========================
-  const battleOverlay = document.getElementById('battleOverlay');
-  const battleCanvas = document.getElementById('battleCanvas');
-  const ctx = battleCanvas.getContext('2d');
+  // ========================
+  // DOOM-ПОДОБНАЯ 3D АРЕНА
+  // ========================
+  const dctx = doomCanvas.getContext('2d');
+  const DW = doomCanvas.width;
+  const DH = doomCanvas.height;
 
-  let battleActive = false;
-  let lastTime = 0;
+  // карта 2D (0 - пусто, 1 - стена)
+  const MAP_W = 10;
+  const MAP_H = 10;
+  const TILE = 1; // логически 1 юнит, не важно
+
+  const map = [
+    [1,1,1,1,1,1,1,1,1,1],
+    [1,0,0,0,0,0,0,0,0,1],
+    [1,0,0,1,0,0,1,0,0,1],
+    [1,0,0,1,0,0,1,0,0,1],
+    [1,0,0,0,0,0,0,0,0,1],
+    [1,0,0,1,1,1,0,0,0,1],
+    [1,0,0,0,0,0,0,1,0,1],
+    [1,0,1,0,0,1,0,0,0,1],
+    [1,0,0,0,0,0,0,0,0,1],
+    [1,1,1,1,1,1,1,1,1,1],
+  ];
 
   const keys = {};
   window.addEventListener('keydown', e => { keys[e.code] = true; });
   window.addEventListener('keyup', e => { keys[e.code] = false; });
 
-  let player1, player2, bullets, safeZone, boxes;
+  const player = {
+    x: 2.5,
+    y: 2.5,
+    angle: 0,
+    speed: 2.5,
+    rotSpeed: 2.5,
+  };
 
-  function startBattle(ctxInfo) {
-    battleActive = true;
-    battleOverlay.classList.add('visible');
-    // параметры игроков
-    // базовые характеристики
-    const baseHP = 100;
-    const baseSpeed = 120; // px/сек
-    const baseDamage = 20;
+  const enemy = {
+    x: 7.5,
+    y: 7.5,
+    hp: 100,
+    maxHp: 100,
+    alive: true,
+  };
 
-    // если дамка -> баф
-    const atkBuff = ctxInfo.attackerIsKing ? 1.5 : 1.0;
-    const defBuff = ctxInfo.defenderIsKing ? 1.5 : 1.0;
+  const bullets = [];
+  let shootCooldown = 0;
 
-    player1 = {
-      // атакующий — слева
-      x: battleCanvas.width * 0.25,
-      y: battleCanvas.height * 0.5,
-      r: 12,
-      color: '#38bdf8',
-      hp: baseHP * atkBuff,
-      maxHp: baseHP * atkBuff,
-      speed: baseSpeed * (1 + (atkBuff - 1) * 0.3),
-      damage: baseDamage * atkBuff,
-      cooldown: 0,
-      cooldownTime: 0.4 / atkBuff // чем сильнее, тем чаще стреляет
-    };
-    player2 = {
-      // защитник — справа
-      x: battleCanvas.width * 0.75,
-      y: battleCanvas.height * 0.5,
-      r: 12,
-      color: '#f97316',
-      hp: baseHP * defBuff,
-      maxHp: baseHP * defBuff,
-      speed: baseSpeed * (1 + (defBuff - 1) * 0.3),
-      damage: baseDamage * defBuff,
-      cooldown: 0,
-      cooldownTime: 0.4 / defBuff
-    };
+  const FOV = Math.PI / 3; // 60°
+  const NUM_RAYS = DW; // по одному лучу на пиксель
 
-    bullets = [];
-
-    safeZone = {
-      cx: battleCanvas.width / 2,
-      cy: battleCanvas.height / 2,
-      radius: 220,
-      shrinkRate: 15 // пикселей в секунду
-    };
-
-    boxes = [
-      { x: 260, y: 160, w: 40, h: 60 },
-      { x: 340, y: 260, w: 60, h: 40 },
-      { x: 190, y: 260, w: 40, h: 40 },
-      { x: 420, y: 140, w: 40, h: 40 }
-    ];
-
-    lastTime = performance.now();
-    requestAnimationFrame(battleLoop);
-    log(`Запущен PvP-бой: атакующий (${ctxInfo.attackerColor}), защитник (${ctxInfo.defenderColor}). Дамка даёт усиление.`);
+  function isWall(x, y) {
+    if (x < 0 || x >= MAP_W || y < 0 || y >= MAP_H) return true;
+    return map[Math.floor(y)][Math.floor(x)] === 1;
   }
 
-  function endBattleInternal(winner) {
-    battleActive = false;
-    battleOverlay.classList.remove('visible');
-    resolveBattleResult(winner);
-  }
+  function updateDoom(dt) {
+    // управление игроком
+    const moveForward = keys['KeyW'];
+    const moveBackward = keys['KeyS'];
+    const strafeLeft = keys['KeyA'];
+    const strafeRight = keys['KeyD'];
+    const turnLeft = keys['KeyQ'];
+    const turnRight = keys['KeyE'];
 
-  function battleLoop(timestamp) {
-    if (!battleActive) return;
-    const dt = (timestamp - lastTime) / 1000;
-    lastTime = timestamp;
+    if (turnLeft) player.angle -= player.rotSpeed * dt;
+    if (turnRight) player.angle += player.rotSpeed * dt;
 
-    updateBattle(dt);
-    drawBattle();
+    const cos = Math.cos(player.angle);
+    const sin = Math.sin(player.angle);
 
-    if (battleActive) {
-      requestAnimationFrame(battleLoop);
+    let dx = 0;
+    let dy = 0;
+
+    if (moveForward) {
+      dx += cos * player.speed * dt;
+      dy += sin * player.speed * dt;
     }
-  }
+    if (moveBackward) {
+      dx -= cos * player.speed * dt;
+      dy -= sin * player.speed * dt;
+    }
+    if (strafeLeft) {
+      dx += -sin * player.speed * dt;
+      dy += cos * player.speed * dt;
+    }
+    if (strafeRight) {
+      dx += sin * player.speed * dt;
+      dy += -cos * player.speed * dt;
+    }
 
-  function updateBattle(dt) {
-    // управление игроками
-    handlePlayerMovement(player1, dt, {
-      up: 'KeyW', down: 'KeyS', left: 'KeyA', right: 'KeyD'
-    });
-    handlePlayerMovement(player2, dt, {
-      up: 'KeyI', down: 'KeyK', left: 'KeyJ', right: 'KeyL'
-    });
+    const newX = player.x + dx;
+    const newY = player.y + dy;
+    if (!isWall(newX, player.y)) player.x = newX;
+    if (!isWall(player.x, newY)) player.y = newY;
+
+    // движение врага (Игрок 2 — стрелки)
+    const enemySpeed = 2.0;
+    let ex = enemy.x;
+    let ey = enemy.y;
+    if (keys['ArrowUp']) ey -= enemySpeed * dt;
+    if (keys['ArrowDown']) ey += enemySpeed * dt;
+    if (keys['ArrowLeft']) ex -= enemySpeed * dt;
+    if (keys['ArrowRight']) ex += enemySpeed * dt;
+    if (!isWall(ex, enemy.y)) enemy.x = ex;
+    if (!isWall(enemy.x, ey)) enemy.y = ey;
 
     // стрельба
-    handleShooting(player1, dt, 'Space', player2);
-    handleShooting(player2, dt, 'Enter', player1);
+    shootCooldown -= dt;
+    if (shootCooldown < 0) shootCooldown = 0;
+    if (keys['Space'] && shootCooldown === 0) {
+      shootBullet();
+      shootCooldown = 0.4;
+    }
 
-    // обновляем пули
+    // апдейт пуль
     for (let i = bullets.length - 1; i >= 0; i--) {
       const b = bullets[i];
       b.x += b.vx * dt;
       b.y += b.vy * dt;
-
-      // вылетело за экран
-      if (b.x < 0 || b.x > battleCanvas.width || b.y < 0 || b.y > battleCanvas.height) {
+      if (isWall(b.x, b.y)) {
         bullets.splice(i, 1);
         continue;
       }
-
-      // столкновение с ящиками
-      if (bulletHitsBox(b)) {
-        bullets.splice(i, 1);
-        continue;
-      }
-
-      // попадание
-      if (!b.fromP1 && circleHit(player1, b)) {
-        player1.hp -= b.damage;
-        bullets.splice(i, 1);
-        if (player1.hp <= 0) {
-          player1.hp = 0;
-          log('Игрок 1 погиб. Победил защитник.');
-          endBattleInternal('defender');
-          return;
+      // попадание во врага
+      if (enemy.alive) {
+        const dx = enemy.x - b.x;
+        const dy = enemy.y - b.y;
+        const dist = Math.hypot(dx, dy);
+        if (dist < 0.3) {
+          enemy.hp -= 40;
+          bullets.splice(i, 1);
+          log('Попадание по цели. HP врага: ' + Math.max(0, enemy.hp).toFixed(0));
+          if (enemy.hp <= 0) {
+            enemy.alive = false;
+            enemy.hp = 0;
+            log('Враг уничтожен.');
+          }
         }
-        continue;
       }
-      if (b.fromP1 && circleHit(player2, b)) {
-        player2.hp -= b.damage;
-        bullets.splice(i, 1);
-        if (player2.hp <= 0) {
-          player2.hp = 0;
-          log('Игрок 2 погиб. Победил атакующий.');
-          endBattleInternal('attacker');
-          return;
-        }
-        continue;
-      }
-    }
-
-    // зона: сужение + дамаг
-    safeZone.radius -= safeZone.shrinkRate * dt;
-    if (safeZone.radius < 40) safeZone.radius = 40;
-
-    applyZoneDamage(player1, dt);
-    applyZoneDamage(player2, dt);
-
-    if (player1.hp <= 0 && player2.hp <= 0) {
-      // ничья: можно считать, что защитник удержал, или убили оба
-      log('Оба погибли. Считаем, что оборона удержана.');
-      endBattleInternal('defender');
-      return;
-    } else if (player1.hp <= 0) {
-      player1.hp = 0;
-      log('Игрок 1 погиб от зоны/огня. Победил защитник.');
-      endBattleInternal('defender');
-      return;
-    } else if (player2.hp <= 0) {
-      player2.hp = 0;
-      log('Игрок 2 погиб от зоны/огня. Победил атакующий.');
-      endBattleInternal('attacker');
-      return;
     }
   }
 
-  function handlePlayerMovement(p, dt, keysMap) {
-    let vx = 0, vy = 0;
-    if (keys[keysMap.up]) vy -= 1;
-    if (keys[keysMap.down]) vy += 1;
-    if (keys[keysMap.left]) vx -= 1;
-    if (keys[keysMap.right]) vx += 1;
-    const len = Math.hypot(vx, vy) || 1;
-    vx /= len; vy /= len;
-
-    const speed = p.speed;
-    let newX = p.x + vx * speed * dt;
-    let newY = p.y + vy * speed * dt;
-
-    // границы арены
-    const margin = p.r + 4;
-    newX = Math.max(margin, Math.min(battleCanvas.width - margin, newX));
-    newY = Math.max(margin, Math.min(battleCanvas.height - margin, newY));
-
-    // коллизия с ящиками
-    const temp = { x: newX, y: newY, r: p.r };
-    for (const box of boxes) {
-      if (circleBoxCollision(temp, box)) {
-        // не двигаем, если врезались
-        return;
-      }
-    }
-
-    p.x = newX;
-    p.y = newY;
-  }
-
-  function handleShooting(p, dt, keyCode, enemy) {
-    p.cooldown -= dt;
-    if (p.cooldown < 0) p.cooldown = 0;
-    if (!keys[keyCode]) return;
-    if (p.cooldown > 0) return;
-
-    // направление: стреляем в сторону врага
-    const dx = enemy.x - p.x;
-    const dy = enemy.y - p.y;
-    const len = Math.hypot(dx, dy) || 1;
-    const dirX = dx / len;
-    const dirY = dy / len;
-    const speed = 260;
-
+  function shootBullet() {
+    const speed = 8;
+    const cos = Math.cos(player.angle);
+    const sin = Math.sin(player.angle);
     bullets.push({
-      x: p.x,
-      y: p.y,
-      vx: dirX * speed,
-      vy: dirY * speed,
-      damage: p.damage,
-      fromP1: (p === player1)
+      x: player.x,
+      y: player.y,
+      vx: cos * speed,
+      vy: sin * speed,
     });
-
-    p.cooldown = p.cooldownTime;
+    log('Выстрел.');
   }
 
-  function bulletHitsBox(b) {
-    for (const box of boxes) {
-      if (b.x >= box.x && b.x <= box.x + box.w &&
-          b.y >= box.y && b.y <= box.y + box.h) {
-        return true;
+  function castRay(rayAngle) {
+    // простой шаговый raymarching
+    const step = 0.02;
+    let dist = 0;
+    let hitWall = false;
+    let hitX = player.x;
+    let hitY = player.y;
+
+    const cos = Math.cos(rayAngle);
+    const sin = Math.sin(rayAngle);
+
+    while (!hitWall && dist < 20) {
+      dist += step;
+      hitX = player.x + cos * dist;
+      hitY = player.y + sin * dist;
+      if (isWall(hitX, hitY)) {
+        hitWall = true;
+        break;
       }
     }
-    return false;
+    if (!hitWall) return { dist: 20, hitWall: false };
+    return { dist, hitWall: true };
   }
 
-  function circleHit(p, b) {
-    const dx = p.x - b.x;
-    const dy = p.y - b.y;
+  function drawDoom() {
+    // фон: небо и пол
+    dctx.fillStyle = '#020617';
+    dctx.fillRect(0, 0, DW, DH / 2); // "небо"
+    dctx.fillStyle = '#0b1120';
+    dctx.fillRect(0, DH / 2, DW, DH / 2); // "пол"
+
+    // стены — raycasting
+    const halfFov = FOV / 2;
+    const distProjPlane = (DW / 2) / Math.tan(halfFov);
+
+    for (let x = 0; x < DW; x++) {
+      const rayScreenPos = (x - DW / 2);
+      const rayAngle = player.angle + Math.atan(rayScreenPos / distProjPlane);
+
+      const ray = castRay(rayAngle);
+      let dist = ray.dist;
+      // устранение рыбьего глаза
+      dist *= Math.cos(rayAngle - player.angle);
+
+      const wallHeight = (TILE * distProjPlane) / dist;
+      const startY = Math.floor(DH / 2 - wallHeight / 2);
+      const endY = Math.floor(DH / 2 + wallHeight / 2);
+
+      let shade = 1 / (1 + dist * 0.1);
+      if (shade > 1) shade = 1;
+      if (shade < 0.1) shade = 0.1;
+      const gray = Math.floor(60 + 140 * shade);
+      dctx.strokeStyle = `rgb(${gray},${gray},${gray})`;
+      dctx.beginPath();
+      dctx.moveTo(x, startY);
+      dctx.lineTo(x, endY);
+      dctx.stroke();
+    }
+
+    // враг как спрайт
+    if (enemy.alive) {
+      drawEnemySprite();
+    }
+
+    // пули как небольшие вспышки на экране (проекция в 2D сверху, можно упростить)
+    // (опционально можно не рисовать)
+
+    // оружие (пушка) снизу — просто прямоугольник
+    drawGun();
+
+    // HP врага
+    drawEnemyHPBar();
+  }
+
+  function drawEnemySprite() {
+    // угол и расстояние до врага
+    const dx = enemy.x - player.x;
+    const dy = enemy.y - player.y;
     const dist = Math.hypot(dx, dy);
-    return dist <= p.r;
-  }
+    if (dist < 0.001) return;
+    const angleToEnemy = Math.atan2(dy, dx);
+    let angleDiff = angleToEnemy - player.angle;
 
-  function circleBoxCollision(circle, box) {
-    const closestX = Math.max(box.x, Math.min(circle.x, box.x + box.w));
-    const closestY = Math.max(box.y, Math.min(circle.y, box.y + box.h));
-    const dx = circle.x - closestX;
-    const dy = circle.y - closestY;
-    return dx*dx + dy*dy < circle.r * circle.r;
-  }
+    // нормализуем -PI..PI
+    while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
+    while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
 
-  function applyZoneDamage(p, dt) {
-    const dx = p.x - safeZone.cx;
-    const dy = p.y - safeZone.cy;
-    const d = Math.hypot(dx, dy);
-    if (d > safeZone.radius) {
-      // дамаг от зоны
-      p.hp -= 15 * dt;
-    }
-  }
-
-  function drawBattle() {
-    ctx.clearRect(0, 0, battleCanvas.width, battleCanvas.height);
-
-    // фон
-    ctx.fillStyle = '#020617';
-    ctx.fillRect(0, 0, battleCanvas.width, battleCanvas.height);
-
-    // зона
-    ctx.beginPath();
-    ctx.arc(safeZone.cx, safeZone.cy, safeZone.radius, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(56,189,248,0.06)';
-    ctx.fill();
-    ctx.strokeStyle = 'rgba(56,189,248,0.8)';
-    ctx.lineWidth = 2;
-    ctx.stroke();
-
-    // граница арены
-    ctx.strokeStyle = '#1f2937';
-    ctx.lineWidth = 3;
-    ctx.strokeRect(4, 4, battleCanvas.width - 8, battleCanvas.height - 8);
-
-    // ящики
-    for (const box of boxes) {
-      ctx.fillStyle = '#1f2937';
-      ctx.fillRect(box.x, box.y, box.w, box.h);
-      ctx.strokeStyle = '#111827';
-      ctx.lineWidth = 2;
-      ctx.strokeRect(box.x, box.y, box.w, box.h);
+    const halfFov = FOV / 2;
+    if (Math.abs(angleDiff) > halfFov + 0.2) {
+      // враг вне экрана
+      return;
     }
 
-    // пули
-    for (const b of bullets) {
-      ctx.beginPath();
-      ctx.arc(b.x, b.y, 3, 0, Math.PI * 2);
-      ctx.fillStyle = b.fromP1 ? '#38bdf8' : '#f97316';
-      ctx.fill();
-    }
+    const distProjPlane = (DW / 2) / Math.tan(halfFov);
+    const spriteScreenX = Math.tan(angleDiff) * distProjPlane;
 
-    // игроки
-    drawPlayer(player1);
-    drawPlayer(player2);
+    const spriteSize = (TILE * distProjPlane) / dist; // высота
+    const spriteScreenY = DH / 2;
 
-    // HP-панель
-    drawHPBars();
+    const xCenter = DW / 2 + spriteScreenX;
+    const yTop = spriteScreenY - spriteSize / 2;
+
+    const w = spriteSize * 0.6;
+    const h = spriteSize;
+
+    dctx.fillStyle = '#f97316';
+    dctx.fillRect(xCenter - w / 2, yTop, w, h);
+    dctx.strokeStyle = '#111827';
+    dctx.lineWidth = 2;
+    dctx.strokeRect(xCenter - w / 2, yTop, w, h);
   }
 
-  function drawPlayer(p) {
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-    ctx.fillStyle = p.color;
-    ctx.fill();
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = '#020617';
-    ctx.stroke();
+  function drawGun() {
+    const gunWidth = DW * 0.25;
+    const gunHeight = DH * 0.25;
+    const x = DW / 2 - gunWidth / 2;
+    const y = DH - gunHeight - 10;
 
-    // маленький "ствол" в сторону центра (визуал)
-    ctx.beginPath();
-    ctx.moveTo(p.x, p.y);
-    const angleToCenter = Math.atan2(safeZone.cy - p.y, safeZone.cx - p.x);
-    const len = p.r + 6;
-    ctx.lineTo(p.x + Math.cos(angleToCenter) * len, p.y + Math.sin(angleToCenter) * len);
-    ctx.strokeStyle = '#e5e7eb';
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
+    dctx.fillStyle = '#111827';
+    dctx.fillRect(x, y, gunWidth, gunHeight);
+    dctx.strokeStyle = '#e5e7eb';
+    dctx.lineWidth = 2;
+    dctx.strokeRect(x, y, gunWidth, gunHeight);
+
+    // небольшая "морда" ствола
+    dctx.fillStyle = '#e5e7eb';
+    dctx.fillRect(DW/2 - 8, y, 16, 8);
   }
 
-  function drawHPBars() {
-    const barWidth = 180;
+  function drawEnemyHPBar() {
+    const barWidth = 200;
     const barHeight = 10;
+    const x = (DW - barWidth) / 2;
+    const y = 10;
 
-    // игрок 1
-    ctx.fillStyle = '#111827';
-    ctx.fillRect(20, 20, barWidth, barHeight);
-    ctx.fillStyle = '#22c55e';
-    const w1 = (player1.hp / player1.maxHp) * barWidth;
-    ctx.fillRect(20, 20, Math.max(0, w1), barHeight);
-    ctx.fillStyle = '#e5e7eb';
-    ctx.font = '10px system-ui';
-    ctx.fillText('Игрок 1 (атакующий)', 20, 16);
+    dctx.fillStyle = '#111827';
+    dctx.fillRect(x, y, barWidth, barHeight);
+    dctx.fillStyle = '#ef4444';
+    const w = (enemy.hp / enemy.maxHp) * barWidth;
+    dctx.fillRect(x, y, Math.max(0, w), barHeight);
 
-    // игрок 2
-    ctx.fillStyle = '#111827';
-    ctx.fillRect(battleCanvas.width - 20 - barWidth, 20, barWidth, barHeight);
-    ctx.fillStyle = '#f97316';
-    const w2 = (player2.hp / player2.maxHp) * barWidth;
-    ctx.fillRect(battleCanvas.width - 20 - barWidth, 20, Math.max(0, w2), barHeight);
-    ctx.fillStyle = '#e5e7eb';
-    ctx.fillText('Игрок 2 (защитник)', battleCanvas.width - 20 - barWidth, 16);
+    dctx.fillStyle = '#e5e7eb';
+    dctx.font = '10px system-ui';
+    dctx.fillText('Цель (HP: ' + enemy.hp.toFixed(0) + ')', x, y - 2);
   }
+
+  let lastTime = performance.now();
+  function doomLoop(now) {
+    const dt = (now - lastTime) / 1000;
+    lastTime = now;
+
+    if (mode === 'doom') {
+      updateDoom(dt);
+      drawDoom();
+    }
+    requestAnimationFrame(doomLoop);
+  }
+
+  requestAnimationFrame(doomLoop);
+
+  // стартовое сообщение
+  log('Готово. Режим шашек активен. Включи 3D арену — там псевдо-Doom с коридорами, врагом и стрельбой.');
 })();
 </script>
 </body>
