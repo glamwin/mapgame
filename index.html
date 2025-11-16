@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
-  <title>Шашки + мини Doom 3D</title>
+  <title>Хоррор-лабиринт: охотник vs жертва</title>
   <style>
     * { box-sizing: border-box; }
     body {
@@ -63,15 +63,10 @@
       background: #0f172a;
       border-color: #334155;
     }
-    button.active {
-      background: #16a34a;
-      border-color: #16a34a;
-    }
     button:hover {
       transform: translateY(-1px);
       box-shadow: 0 6px 12px rgba(0,0,0,0.4);
     }
-
     .container {
       background: radial-gradient(circle at top, #0b1120 0, #020617 50%, #000 100%);
       padding: 12px;
@@ -79,23 +74,17 @@
       border: 1px solid #1f2937;
       box-shadow: 0 18px 36px rgba(0,0,0,0.7);
     }
-
     canvas {
       display: block;
       border-radius: 10px;
       border: 1px solid #111827;
       background: #020617;
     }
-
-    #checkersCanvas {
-      width: 480px;
-      height: 480px;
-    }
     #doomCanvas {
-      width: 640px;
-      height: 360px;
+      width: 800px;
+      height: 450px;
+      cursor: crosshair;
     }
-
     .info {
       font-size: 12px;
       color: #9ca3af;
@@ -103,7 +92,6 @@
       max-width: 960px;
     }
     .info strong { color: #e5e7eb; }
-
     .log {
       font-size: 11px;
       color: #6b7280;
@@ -112,7 +100,7 @@
       border-radius: 10px;
       padding: 6px 10px;
       border: 1px solid #111827;
-      max-height: 120px;
+      max-height: 140px;
       overflow-y: auto;
       white-space: pre-line;
       width: 100%;
@@ -122,537 +110,404 @@
 </head>
 <body>
 <header>
-  <h1>Шашки + мини Doom-подобная 3D-арена</h1>
-  <p class="subtitle">2D шашки + raycasting-псевдо-3D с оружием и целью. Всё без библиотек.</p>
+  <h1>Хоррор-лабиринт: Охотник против Жертвы</h1>
+  <p class="subtitle">
+    Псевдо-3D как старый Doom: мышь — обзор, банихоп-ускорение, спринт, присед, охота по лабиринту.
+  </p>
 </header>
 
 <div class="layout">
   <div class="controls">
-    <button id="modeCheckers" class="active">Режим шашек</button>
-    <button id="modeDoom" class="secondary">Режим 3D арены</button>
-    <button id="resetCheckers" class="secondary">Сбросить шашки</button>
+    <button id="lockBtn">Захват мыши</button>
+    <button id="resetBtn" class="secondary">Сброс позиции</button>
   </div>
 
   <div class="container">
-    <canvas id="checkersCanvas" width="480" height="480"></canvas>
-    <canvas id="doomCanvas" width="640" height="360" style="display:none;"></canvas>
+    <canvas id="doomCanvas" width="800" height="450"></canvas>
   </div>
 
-  <div class="info" id="infoText">
-    <div><strong>Шашки:</strong> клик по своей шашке → клик по диагональной чёрной клетке (без боёв, просто ход).</div>
-    <div><strong>3D арена:</strong> Игрок 1 — W/S вперёд/назад, A/D влево/вправо (страйф), Q/E поворот, Space — выстрел. Игрок 2 — стрелки двигают цель. Попадания по цели снимают HP.</div>
+  <div class="info">
+    <div><strong>Игрок 1 (охотник, камера):</strong> W/S — вперёд/назад, A/D — страйф, Shift — спринт, Ctrl — присед, Space — прыжок (банихоп ускоряет), F — удар (если жертва рядом).</div>
+    <div><strong>Игрок 2 (жертва, силуэт):</strong> стрелки ←↑↓→ — движение по лабиринту (виден как фигура в 3D).</div>
+    <div>Нажми “Захват мыши”, наведи курсор на канвас и кликни — заработает обзор мышью. Выход мышью: Esc.</div>
   </div>
 
-  <div class="log" id="logBox">Готово. Сейчас включён режим шашек.</div>
+  <div class="log" id="logBox">Готово. Встаньте в канвас, включите захват мыши и бегайте по лабиринту.</div>
 </div>
 
 <script>
 (function() {
+  const canvas = document.getElementById('doomCanvas');
+  const ctx = canvas.getContext('2d');
   const logBox = document.getElementById('logBox');
+  const lockBtn = document.getElementById('lockBtn');
+  const resetBtn = document.getElementById('resetBtn');
+
   function log(msg) {
     const t = new Date().toLocaleTimeString('ru-RU', { hour12: false });
     const line = `[${t}] ${msg}`;
     logBox.textContent = line + "\n" + logBox.textContent;
   }
 
-  const modeCheckersBtn = document.getElementById('modeCheckers');
-  const modeDoomBtn = document.getElementById('modeDoom');
-  const resetCheckersBtn = document.getElementById('resetCheckers');
-  const infoText = document.getElementById('infoText');
-  const checkersCanvas = document.getElementById('checkersCanvas');
-  const doomCanvas = document.getElementById('doomCanvas');
-
-  let mode = 'checkers';
-
-  function setMode(newMode) {
-    mode = newMode;
-    if (newMode === 'checkers') {
-      modeCheckersBtn.classList.add('active');
-      modeCheckersBtn.classList.remove('secondary');
-      modeDoomBtn.classList.remove('active');
-      modeDoomBtn.classList.add('secondary');
-      checkersCanvas.style.display = 'block';
-      doomCanvas.style.display = 'none';
-      infoText.innerHTML =
-        '<div><strong>Шашки:</strong> клик по своей шашке → клик по диагональной чёрной клетке (упрощённые правила, без боёв).</div>' +
-        '<div><strong>3D арена:</strong> переключись в режим 3D, чтобы протестировать псевдо-Doom.</div>';
-      log('Включён режим шашек.');
-    } else {
-      modeDoomBtn.classList.add('active');
-      modeDoomBtn.classList.remove('secondary');
-      modeCheckersBtn.classList.remove('active');
-      modeCheckersBtn.classList.add('secondary');
-      checkersCanvas.style.display = 'none';
-      doomCanvas.style.display = 'block';
-      infoText.innerHTML =
-        '<div><strong>3D арена:</strong> Игрок 1 — W/S вперёд/назад, A/D влево/вправо (страйф), Q/E поворот, Space — выстрел.</div>' +
-        '<div>Игрок 2 — стрелки ←↑↓→ двигают цель. Попадания по цели снимают HP. **Без хила**.</div>';
-      log('Включён режим 3D арены.');
-    }
-  }
-
-  modeCheckersBtn.addEventListener('click', () => setMode('checkers'));
-  modeDoomBtn.addEventListener('click', () => setMode('doom'));
-
-  // ========================
-  // ШАШКИ (упрощённо)
-  // ========================
-  const bctx = checkersCanvas.getContext('2d');
-  const SIZE = 8;
-  const CELL = checkersCanvas.width / SIZE;
-
-  // board[y][x] = {color:'w'|'b', king:false}
-  let board = [];
-  let currentPlayer = 'w';
-  let selected = null;
-
-  function initBoard() {
-    board = [];
-    for (let y = 0; y < SIZE; y++) {
-      const row = [];
-      for (let x = 0; x < SIZE; x++) row.push(null);
-      board.push(row);
-    }
-    // чёрные сверху (0-2), белые снизу (5-7)
-    for (let y = 0; y < 3; y++) {
-      for (let x = 0; x < SIZE; x++) {
-        if ((x + y) % 2 === 1) {
-          board[y][x] = { color: 'b', king: false };
-        }
-      }
-    }
-    for (let y = 5; y < 8; y++) {
-      for (let x = 0; x < SIZE; x++) {
-        if ((x + y) % 2 === 1) {
-          board[y][x] = { color: 'w', king: false };
-        }
-      }
-    }
-    currentPlayer = 'w';
-    selected = null;
-    drawBoard();
-  }
-
-  function drawBoard() {
-    for (let y = 0; y < SIZE; y++) {
-      for (let x = 0; x < SIZE; x++) {
-        const dark = (x + y) % 2 === 1;
-        bctx.fillStyle = dark ? '#111827' : '#e5e7eb';
-        bctx.fillRect(x * CELL, y * CELL, CELL, CELL);
-
-        if (selected && selected.x === x && selected.y === y) {
-          bctx.fillStyle = 'rgba(250,204,21,0.3)';
-          bctx.fillRect(x * CELL, y * CELL, CELL, CELL);
-        }
-
-        const piece = board[y][x];
-        if (piece) {
-          bctx.beginPath();
-          bctx.arc(
-            x * CELL + CELL / 2,
-            y * CELL + CELL / 2,
-            CELL * 0.35,
-            0, Math.PI * 2
-          );
-          bctx.fillStyle = piece.color === 'w' ? '#f9fafb' : '#0f172a';
-          bctx.fill();
-          bctx.lineWidth = 2;
-          bctx.strokeStyle = piece.color === 'w' ? '#e5e7eb' : '#374151';
-          bctx.stroke();
-        }
-      }
-    }
-  }
-
-  function getCellFromEvent(evt) {
-    const rect = checkersCanvas.getBoundingClientRect();
-    const x = Math.floor((evt.clientX - rect.left) / CELL);
-    const y = Math.floor((evt.clientY - rect.top) / CELL);
-    if (x < 0 || x >= SIZE || y < 0 || y >= SIZE) return null;
-    return { x, y };
-  }
-
-  function handleBoardClick(evt) {
-    if (mode !== 'checkers') return;
-    const cell = getCellFromEvent(evt);
-    if (!cell) return;
-    const { x, y } = cell;
-    if ((x + y) % 2 === 0) return; // только чёрные клетки
-
-    const piece = board[y][x];
-    if (selected) {
-      if (selected.x === x && selected.y === y) {
-        selected = null;
-        drawBoard();
-        return;
-      }
-      tryMoveSimple(selected.x, selected.y, x, y);
-      return;
-    } else {
-      if (piece && piece.color === currentPlayer) {
-        selected = { x, y };
-        drawBoard();
-      }
-    }
-  }
-
-  // упрощённый ход: только на одну диагональ вперёд, без боёв и дамок
-  function tryMoveSimple(fromX, fromY, toX, toY) {
-    const piece = board[fromY][fromX];
-    if (!piece) { selected = null; drawBoard(); return; }
-    if (board[toY][toX]) { selected = null; drawBoard(); return; }
-
-    const dx = toX - fromX;
-    const dy = toY - fromY;
-    const absDx = Math.abs(dx);
-    const absDy = Math.abs(dy);
-    if (absDx === 1 && absDy === 1) {
-      const dir = piece.color === 'w' ? -1 : 1; // белые снизу → ход вверх
-      if (dy !== dir) {
-        selected = null;
-        drawBoard();
-        return;
-      }
-      board[toY][toX] = piece;
-      board[fromY][fromX] = null;
-      selected = null;
-      currentPlayer = currentPlayer === 'w' ? 'b' : 'w';
-      drawBoard();
-      log(`Ход сделан. Теперь ходит ${currentPlayer === 'w' ? 'белые' : 'чёрные'}.`);
-      return;
-    }
-    selected = null;
-    drawBoard();
-  }
-
-  checkersCanvas.addEventListener('click', handleBoardClick);
-  resetCheckersBtn.addEventListener('click', () => {
-    initBoard();
-    log('Шашки сброшены.');
+  // ========= Pointer Lock (обзор мышью) =========
+  lockBtn.addEventListener('click', () => {
+    canvas.requestPointerLock();
   });
 
-  initBoard();
+  document.addEventListener('pointerlockchange', () => {
+    if (document.pointerLockElement === canvas) {
+      log('Мышь захвачена. Двигай мышью — обзор.');
+    } else {
+      log('Мышь отпущена (Esc).');
+    }
+  });
 
-  // ========================
-  // DOOM-ПОДОБНАЯ 3D АРЕНА
-  // ========================
-  const dctx = doomCanvas.getContext('2d');
-  const DW = doomCanvas.width;
-  const DH = doomCanvas.height;
-
-  // карта 2D (0 - пусто, 1 - стена)
-  const MAP_W = 10;
-  const MAP_H = 10;
-  const TILE = 1; // логически 1 юнит, не важно
-
-  const map = [
-    [1,1,1,1,1,1,1,1,1,1],
-    [1,0,0,0,0,0,0,0,0,1],
-    [1,0,0,1,0,0,1,0,0,1],
-    [1,0,0,1,0,0,1,0,0,1],
-    [1,0,0,0,0,0,0,0,0,1],
-    [1,0,0,1,1,1,0,0,0,1],
-    [1,0,0,0,0,0,0,1,0,1],
-    [1,0,1,0,0,1,0,0,0,1],
-    [1,0,0,0,0,0,0,0,0,1],
-    [1,1,1,1,1,1,1,1,1,1],
-  ];
-
+  // ========= Управление =========
   const keys = {};
   window.addEventListener('keydown', e => { keys[e.code] = true; });
   window.addEventListener('keyup', e => { keys[e.code] = false; });
 
-  const player = {
-    x: 2.5,
-    y: 2.5,
-    angle: 0,
-    speed: 2.5,
-    rotSpeed: 2.5,
-  };
+  let mouseDeltaX = 0;
+  document.addEventListener('mousemove', e => {
+    if (document.pointerLockElement === canvas) {
+      mouseDeltaX += e.movementX;
+    }
+  });
 
-  const enemy = {
-    x: 7.5,
-    y: 7.5,
-    hp: 100,
-    maxHp: 100,
-    alive: true,
-  };
-
-  const bullets = [];
-  let shootCooldown = 0;
-
-  const FOV = Math.PI / 3; // 60°
-  const NUM_RAYS = DW; // по одному лучу на пиксель
+  // ========= Карта-лабиринт (больше, чем раньше) =========
+  // 0 — проход, 1 — стена
+  const MAP_W = 24;
+  const MAP_H = 24;
+  const map = [
+    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+    [1,0,0,0,0,0,0,0,0,1,0,0,0,0,1,0,0,0,1,0,0,0,0,1],
+    [1,0,1,1,1,0,1,1,0,1,0,1,1,0,1,0,1,0,1,0,1,1,0,1],
+    [1,0,1,0,0,0,0,1,0,0,0,1,0,0,1,0,1,0,0,0,0,1,0,1],
+    [1,0,1,0,1,1,0,1,1,1,0,1,0,1,1,0,1,1,1,1,0,1,0,1],
+    [1,0,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,0,0,1,0,0,0,1],
+    [1,0,1,1,0,1,1,1,0,1,1,1,0,1,0,1,1,1,0,1,1,1,0,1],
+    [1,0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,1],
+    [1,1,0,1,1,1,0,1,1,1,0,1,1,1,0,1,1,1,0,1,1,1,0,1],
+    [1,0,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,0,0,1,0,0,0,1],
+    [1,0,1,1,0,1,1,1,0,1,1,1,0,1,0,1,1,1,0,1,1,1,0,1],
+    [1,0,1,0,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,1],
+    [1,0,1,0,1,1,0,1,1,1,0,1,0,1,1,0,1,1,1,1,0,1,0,1],
+    [1,0,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,0,0,1,0,0,0,1],
+    [1,0,1,1,0,1,1,1,0,1,1,1,0,1,0,1,1,1,0,1,1,1,0,1],
+    [1,0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,1],
+    [1,1,0,1,1,1,0,1,1,1,0,1,1,1,0,1,1,1,0,1,1,1,0,1],
+    [1,0,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,0,0,1,0,0,0,1],
+    [1,0,1,1,0,1,1,1,0,1,1,1,0,1,0,1,1,1,0,1,1,1,0,1],
+    [1,0,1,0,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,1],
+    [1,0,1,0,1,1,0,1,1,1,0,1,0,1,1,0,1,1,1,1,0,1,0,1],
+    [1,0,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,0,0,1,0,0,0,1],
+    [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+  ];
 
   function isWall(x, y) {
     if (x < 0 || x >= MAP_W || y < 0 || y >= MAP_H) return true;
     return map[Math.floor(y)][Math.floor(x)] === 1;
   }
 
-  function updateDoom(dt) {
-    // управление игроком
-    const moveForward = keys['KeyW'];
-    const moveBackward = keys['KeyS'];
-    const strafeLeft = keys['KeyA'];
-    const strafeRight = keys['KeyD'];
-    const turnLeft = keys['KeyQ'];
-    const turnRight = keys['KeyE'];
+  // ========= Игрок 1 (охотник) =========
+  const player = {
+    x: 2.5,
+    y: 2.5,
+    angle: 0,
+    baseSpeed: 3.0,
+    speed: 3.0,
+    maxSpeed: 9.0,
+    bunnyBoost: 1.4,
+    friction: 3.0,
+    rotSpeedMouse: 0.0025,
+    crouch: false,
+    eyeHeight: 0.5, // влияет на вертикальное смещение проекции
+    isJumping: false,
+    jumpCooldown: 0, // чтобы не спамить space
+  };
 
-    if (turnLeft) player.angle -= player.rotSpeed * dt;
-    if (turnRight) player.angle += player.rotSpeed * dt;
+  // ========= Игрок 2 (жертва) =========
+  const victim = {
+    x: 20.5,
+    y: 20.5,
+    speed: 2.8,
+    alive: true,
+  };
 
-    const cos = Math.cos(player.angle);
-    const sin = Math.sin(player.angle);
+  // ========= Настройки рендера =========
+  const W = canvas.width;
+  const H = canvas.height;
+  const HALF_H = H / 2;
+  const FOV = Math.PI / 3;
+  const HALF_FOV = FOV / 2;
+  const NUM_RAYS = W;
+  const PROJ_PLANE_DIST = (W / 2) / Math.tan(HALF_FOV);
 
-    let dx = 0;
-    let dy = 0;
-
-    if (moveForward) {
-      dx += cos * player.speed * dt;
-      dy += sin * player.speed * dt;
-    }
-    if (moveBackward) {
-      dx -= cos * player.speed * dt;
-      dy -= sin * player.speed * dt;
-    }
-    if (strafeLeft) {
-      dx += -sin * player.speed * dt;
-      dy += cos * player.speed * dt;
-    }
-    if (strafeRight) {
-      dx += sin * player.speed * dt;
-      dy += -cos * player.speed * dt;
-    }
-
-    const newX = player.x + dx;
-    const newY = player.y + dy;
-    if (!isWall(newX, player.y)) player.x = newX;
-    if (!isWall(player.x, newY)) player.y = newY;
-
-    // движение врага (Игрок 2 — стрелки)
-    const enemySpeed = 2.0;
-    let ex = enemy.x;
-    let ey = enemy.y;
-    if (keys['ArrowUp']) ey -= enemySpeed * dt;
-    if (keys['ArrowDown']) ey += enemySpeed * dt;
-    if (keys['ArrowLeft']) ex -= enemySpeed * dt;
-    if (keys['ArrowRight']) ex += enemySpeed * dt;
-    if (!isWall(ex, enemy.y)) enemy.x = ex;
-    if (!isWall(enemy.x, ey)) enemy.y = ey;
-
-    // стрельба
-    shootCooldown -= dt;
-    if (shootCooldown < 0) shootCooldown = 0;
-    if (keys['Space'] && shootCooldown === 0) {
-      shootBullet();
-      shootCooldown = 0.4;
-    }
-
-    // апдейт пуль
-    for (let i = bullets.length - 1; i >= 0; i--) {
-      const b = bullets[i];
-      b.x += b.vx * dt;
-      b.y += b.vy * dt;
-      if (isWall(b.x, b.y)) {
-        bullets.splice(i, 1);
-        continue;
-      }
-      // попадание во врага
-      if (enemy.alive) {
-        const dx = enemy.x - b.x;
-        const dy = enemy.y - b.y;
-        const dist = Math.hypot(dx, dy);
-        if (dist < 0.3) {
-          enemy.hp -= 40;
-          bullets.splice(i, 1);
-          log('Попадание по цели. HP врага: ' + Math.max(0, enemy.hp).toFixed(0));
-          if (enemy.hp <= 0) {
-            enemy.alive = false;
-            enemy.hp = 0;
-            log('Враг уничтожен.');
-          }
-        }
-      }
-    }
-  }
-
-  function shootBullet() {
-    const speed = 8;
-    const cos = Math.cos(player.angle);
-    const sin = Math.sin(player.angle);
-    bullets.push({
-      x: player.x,
-      y: player.y,
-      vx: cos * speed,
-      vy: sin * speed,
-    });
-    log('Выстрел.');
-  }
-
+  // ========= Лучи =========
   function castRay(rayAngle) {
-    // простой шаговый raymarching
     const step = 0.02;
     let dist = 0;
-    let hitWall = false;
+    let hit = false;
     let hitX = player.x;
     let hitY = player.y;
 
     const cos = Math.cos(rayAngle);
     const sin = Math.sin(rayAngle);
 
-    while (!hitWall && dist < 20) {
+    while (!hit && dist < 30) {
       dist += step;
       hitX = player.x + cos * dist;
       hitY = player.y + sin * dist;
       if (isWall(hitX, hitY)) {
-        hitWall = true;
-        break;
+        hit = true;
       }
     }
-    if (!hitWall) return { dist: 20, hitWall: false };
-    return { dist, hitWall: true };
+    return { dist, hit, hitX, hitY };
   }
 
-  function drawDoom() {
-    // фон: небо и пол
-    dctx.fillStyle = '#020617';
-    dctx.fillRect(0, 0, DW, DH / 2); // "небо"
-    dctx.fillStyle = '#0b1120';
-    dctx.fillRect(0, DH / 2, DW, DH / 2); // "пол"
+  // ========= Движение охотника (банихоп, спринт, присед) =========
+  function movePlayer(dt) {
+    // мышь — поворот
+    if (document.pointerLockElement === canvas) {
+      player.angle += mouseDeltaX * player.rotSpeedMouse;
+    }
+    mouseDeltaX = 0;
 
-    // стены — raycasting
-    const halfFov = FOV / 2;
-    const distProjPlane = (DW / 2) / Math.tan(halfFov);
+    const forward = (keys['KeyW'] || false) - (keys['KeyS'] || false);
+    const strafe = (keys['KeyD'] || false) - (keys['KeyA'] || false);
 
-    for (let x = 0; x < DW; x++) {
-      const rayScreenPos = (x - DW / 2);
-      const rayAngle = player.angle + Math.atan(rayScreenPos / distProjPlane);
+    // спринт
+    let targetSpeed = player.baseSpeed;
+    if (keys['ShiftLeft'] || keys['ShiftRight']) {
+      targetSpeed *= 1.7;
+    }
 
-      const ray = castRay(rayAngle);
-      let dist = ray.dist;
+    // присед
+    if (keys['ControlLeft'] || keys['ControlRight']) {
+      player.crouch = true;
+      targetSpeed *= 0.5;
+      player.eyeHeight = 0.35;
+    } else {
+      player.crouch = false;
+      player.eyeHeight = 0.5;
+    }
+
+    // банихоп: если Space нажали при движении — буст
+    player.jumpCooldown -= dt;
+    if (player.jumpCooldown < 0) player.jumpCooldown = 0;
+    if (keys['Space'] && player.jumpCooldown === 0 && (forward !== 0 || strafe !== 0)) {
+      // увеличиваем текущую скорость
+      player.speed = Math.min(player.speed * player.bunnyBoost, player.maxSpeed);
+      player.jumpCooldown = 0.25; // нельзя прыгать слишком часто
+    }
+
+    // плавное стремление к targetSpeed
+    if (player.speed < targetSpeed) {
+      player.speed += 4 * dt;
+    } else if (player.speed > targetSpeed) {
+      player.speed -= player.friction * dt;
+      if (player.speed < targetSpeed) player.speed = targetSpeed;
+    }
+
+    // движение по направлению
+    const angle = player.angle;
+    const cos = Math.cos(angle);
+    const sin = Math.sin(angle);
+
+    let dx = 0;
+    let dy = 0;
+
+    if (forward !== 0) {
+      dx += cos * forward;
+      dy += sin * forward;
+    }
+    if (strafe !== 0) {
+      dx += sin * strafe;
+      dy += -cos * strafe;
+    }
+
+    const len = Math.hypot(dx, dy) || 1;
+    dx = dx / len * player.speed * dt;
+    dy = dy / len * player.speed * dt;
+
+    const newX = player.x + dx;
+    const newY = player.y + dy;
+
+    if (!isWall(newX, player.y)) player.x = newX;
+    if (!isWall(player.x, newY)) player.y = newY;
+  }
+
+  // ========= Движение жертвы =========
+  function moveVictim(dt) {
+    if (!victim.alive) return;
+    let vx = 0, vy = 0;
+    if (keys['ArrowUp']) vy -= 1;
+    if (keys['ArrowDown']) vy += 1;
+    if (keys['ArrowLeft']) vx -= 1;
+    if (keys['ArrowRight']) vx += 1;
+    const len = Math.hypot(vx, vy) || 1;
+    vx = vx / len * victim.speed * dt;
+    vy = vy / len * victim.speed * dt;
+
+    const newX = victim.x + vx;
+    const newY = victim.y + vy;
+    if (!isWall(newX, victim.y)) victim.x = newX;
+    if (!isWall(victim.x, newY)) victim.y = newY;
+  }
+
+  // ========= Удар (F) =========
+  function handleMelee() {
+    if (!victim.alive) return;
+    if (!keys['KeyF']) return;
+    // дистанция до жертвы
+    const dx = victim.x - player.x;
+    const dy = victim.y - player.y;
+    const dist = Math.hypot(dx, dy);
+    if (dist < 0.7) {
+      victim.alive = false;
+      log('Охотник добрался до жертвы. Жертва убита.');
+    }
+  }
+
+  // ========= Отрисовка =========
+  function draw() {
+    // фон: тёмное "небо" и "пол"
+    ctx.fillStyle = '#020617';
+    ctx.fillRect(0, 0, W, H / 2);
+    ctx.fillStyle = '#050816';
+    ctx.fillRect(0, H / 2, W, H / 2);
+
+    // стены
+    for (let x = 0; x < W; x++) {
+      const screenX = x - W / 2;
+      const rayAngle = player.angle + Math.atan(screenX / PROJ_PLANE_DIST);
+
+      const result = castRay(rayAngle);
+
+      let dist = result.dist;
       // устранение рыбьего глаза
       dist *= Math.cos(rayAngle - player.angle);
 
-      const wallHeight = (TILE * distProjPlane) / dist;
-      const startY = Math.floor(DH / 2 - wallHeight / 2);
-      const endY = Math.floor(DH / 2 + wallHeight / 2);
+      const wallHeight = (1 * PROJ_PLANE_DIST) / dist;
+      const eyeOffset = (player.eyeHeight - 0.5) * H * 0.6; // сдвиг горизонта при приседе
+      const startY = Math.floor(H / 2 - wallHeight / 2 + eyeOffset);
+      const endY = Math.floor(H / 2 + wallHeight / 2 + eyeOffset);
 
       let shade = 1 / (1 + dist * 0.1);
       if (shade > 1) shade = 1;
       if (shade < 0.1) shade = 0.1;
-      const gray = Math.floor(60 + 140 * shade);
-      dctx.strokeStyle = `rgb(${gray},${gray},${gray})`;
-      dctx.beginPath();
-      dctx.moveTo(x, startY);
-      dctx.lineTo(x, endY);
-      dctx.stroke();
+      const r = Math.floor(30 + 100 * shade);
+      const g = Math.floor(20 + 80 * shade);
+      const b = Math.floor(40 + 120 * shade);
+      ctx.strokeStyle = `rgb(${r},${g},${b})`;
+      ctx.beginPath();
+      ctx.moveTo(x, startY);
+      ctx.lineTo(x, endY);
+      ctx.stroke();
     }
 
-    // враг как спрайт
-    if (enemy.alive) {
-      drawEnemySprite();
+    // спрайт жертвы
+    if (victim.alive) {
+      drawVictimSprite();
     }
 
-    // пули как небольшие вспышки на экране (проекция в 2D сверху, можно упростить)
-    // (опционально можно не рисовать)
-
-    // оружие (пушка) снизу — просто прямоугольник
-    drawGun();
-
-    // HP врага
-    drawEnemyHPBar();
+    drawHUD();
   }
 
-  function drawEnemySprite() {
-    // угол и расстояние до врага
-    const dx = enemy.x - player.x;
-    const dy = enemy.y - player.y;
+  function drawVictimSprite() {
+    const dx = victim.x - player.x;
+    const dy = victim.y - player.y;
     const dist = Math.hypot(dx, dy);
     if (dist < 0.001) return;
-    const angleToEnemy = Math.atan2(dy, dx);
-    let angleDiff = angleToEnemy - player.angle;
 
-    // нормализуем -PI..PI
-    while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
-    while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
+    const angleTo = Math.atan2(dy, dx);
+    let delta = angleTo - player.angle;
+    while (delta > Math.PI) delta -= 2 * Math.PI;
+    while (delta < -Math.PI) delta += 2 * Math.PI;
 
-    const halfFov = FOV / 2;
-    if (Math.abs(angleDiff) > halfFov + 0.2) {
-      // враг вне экрана
-      return;
-    }
+    if (Math.abs(delta) > HALF_FOV + 0.3) return; // вне поля зрения
 
-    const distProjPlane = (DW / 2) / Math.tan(halfFov);
-    const spriteScreenX = Math.tan(angleDiff) * distProjPlane;
-
-    const spriteSize = (TILE * distProjPlane) / dist; // высота
-    const spriteScreenY = DH / 2;
-
-    const xCenter = DW / 2 + spriteScreenX;
-    const yTop = spriteScreenY - spriteSize / 2;
+    const spriteScreenX = Math.tan(delta) * PROJ_PLANE_DIST;
+    const spriteSize = (1 * PROJ_PLANE_DIST) / dist;
+    const xCenter = W / 2 + spriteScreenX;
+    const eyeOffset = (player.eyeHeight - 0.5) * H * 0.6;
+    const yMid = H / 2 + eyeOffset;
+    const yTop = yMid - spriteSize / 2;
 
     const w = spriteSize * 0.6;
-    const h = spriteSize;
+    const h = spriteSize * 1.2;
 
-    dctx.fillStyle = '#f97316';
-    dctx.fillRect(xCenter - w / 2, yTop, w, h);
-    dctx.strokeStyle = '#111827';
-    dctx.lineWidth = 2;
-    dctx.strokeRect(xCenter - w / 2, yTop, w, h);
+    // лёгкий "glow"
+    ctx.fillStyle = 'rgba(148,27,27,0.3)';
+    ctx.fillRect(xCenter - w, yTop - 10, w * 2, h + 20);
+
+    ctx.fillStyle = '#f97316';
+    ctx.fillRect(xCenter - w / 2, yTop, w, h);
+    ctx.strokeStyle = '#111827';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(xCenter - w / 2, yTop, w, h);
+
+    // "глаза"
+    ctx.fillStyle = '#facc15';
+    ctx.fillRect(xCenter - w / 4, yTop + h * 0.2, 4, 4);
+    ctx.fillRect(xCenter + w / 4 - 4, yTop + h * 0.2, 4, 4);
   }
 
-  function drawGun() {
-    const gunWidth = DW * 0.25;
-    const gunHeight = DH * 0.25;
-    const x = DW / 2 - gunWidth / 2;
-    const y = DH - gunHeight - 10;
+  function drawHUD() {
+    // нижняя панель
+    ctx.fillStyle = 'rgba(15,23,42,0.7)';
+    ctx.fillRect(0, H - 48, W, 48);
 
-    dctx.fillStyle = '#111827';
-    dctx.fillRect(x, y, gunWidth, gunHeight);
-    dctx.strokeStyle = '#e5e7eb';
-    dctx.lineWidth = 2;
-    dctx.strokeRect(x, y, gunWidth, gunHeight);
+    // скорость
+    ctx.fillStyle = '#e5e7eb';
+    ctx.font = '11px system-ui';
+    ctx.fillText('Скорость: ' + player.speed.toFixed(2), 12, H - 30);
+    ctx.fillText('Жертва: ' + (victim.alive ? 'жива' : 'убита'), 12, H - 16);
 
-    // небольшая "морда" ствола
-    dctx.fillStyle = '#e5e7eb';
-    dctx.fillRect(DW/2 - 8, y, 16, 8);
+    // простая "рука"/оружие снизу
+    const gunW = W * 0.18;
+    const gunH = 36;
+    const gx = W / 2 - gunW / 2;
+    const gy = H - gunH - 6;
+    ctx.fillStyle = '#0f172a';
+    ctx.fillRect(gx, gy, gunW, gunH);
+    ctx.strokeStyle = '#e5e7eb';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(gx, gy, gunW, gunH);
+    ctx.fillStyle = '#e5e7eb';
+    ctx.fillRect(W/2 - 6, gy, 12, 8); // "ствол"
   }
 
-  function drawEnemyHPBar() {
-    const barWidth = 200;
-    const barHeight = 10;
-    const x = (DW - barWidth) / 2;
-    const y = 10;
-
-    dctx.fillStyle = '#111827';
-    dctx.fillRect(x, y, barWidth, barHeight);
-    dctx.fillStyle = '#ef4444';
-    const w = (enemy.hp / enemy.maxHp) * barWidth;
-    dctx.fillRect(x, y, Math.max(0, w), barHeight);
-
-    dctx.fillStyle = '#e5e7eb';
-    dctx.font = '10px system-ui';
-    dctx.fillText('Цель (HP: ' + enemy.hp.toFixed(0) + ')', x, y - 2);
-  }
-
+  // ========= Цикл =========
   let lastTime = performance.now();
-  function doomLoop(now) {
+  function loop(now) {
     const dt = (now - lastTime) / 1000;
     lastTime = now;
 
-    if (mode === 'doom') {
-      updateDoom(dt);
-      drawDoom();
-    }
-    requestAnimationFrame(doomLoop);
+    movePlayer(dt);
+    moveVictim(dt);
+    handleMelee();
+    draw();
+
+    requestAnimationFrame(loop);
   }
+  requestAnimationFrame(loop);
 
-  requestAnimationFrame(doomLoop);
+  // ========= Сброс позиций =========
+  resetBtn.addEventListener('click', () => {
+    player.x = 2.5;
+    player.y = 2.5;
+    player.angle = 0;
+    player.speed = player.baseSpeed;
+    victim.x = 20.5;
+    victim.y = 20.5;
+    victim.alive = true;
+    log('Позиции сброшены. Охотник и жертва вернулись на старт.');
+  });
 
-  // стартовое сообщение
-  log('Готово. Режим шашек активен. Включи 3D арену — там псевдо-Doom с коридорами, врагом и стрельбой.');
+  log('Прототип загружен. Игрок 1 — охотник (WASD, Shift, Ctrl, Space, F, мышь), Игрок 2 — жертва (стрелки).');
 })();
 </script>
 </body>
 </html>
-
