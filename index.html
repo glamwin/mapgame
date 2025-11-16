@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
-  <title>Военный прототип: Киев–Донецк–Курск–Ростов</title>
+  <title>Шашки + PvP арена</title>
   <style>
     * { box-sizing: border-box; }
     body {
@@ -32,24 +32,43 @@
     }
     .layout {
       width: 100%;
-      max-width: 1024px;
+      max-width: 900px;
       padding: 8px 16px 24px;
       display: flex;
       flex-direction: column;
-      gap: 8px;
-    }
-    .top-bar {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
+      gap: 12px;
       align-items: center;
-      justify-content: space-between;
     }
-    .controls {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      align-items: center;
+    .board-wrapper {
+      background: radial-gradient(circle at top, #0b1120 0, #020617 50%, #000 100%);
+      padding: 12px;
+      border-radius: 16px;
+      border: 1px solid #1f2937;
+      box-shadow: 0 18px 36px rgba(0,0,0,0.7);
+    }
+    #board {
+      border: 2px solid #1f2937;
+      border-radius: 8px;
+    }
+    .info {
+      font-size: 12px;
+      color: #9ca3af;
+      text-align: center;
+    }
+    .info strong { color: #e5e7eb; }
+    .log {
+      font-size: 11px;
+      color: #6b7280;
+      font-family: monospace;
+      background: rgba(15,23,42,0.85);
+      border-radius: 10px;
+      padding: 6px 10px;
+      border: 1px solid #111827;
+      max-height: 120px;
+      overflow-y: auto;
+      white-space: pre-line;
+      width: 100%;
+      max-width: 900px;
     }
     button {
       background: #1d4ed8;
@@ -68,712 +87,720 @@
       background: #0f172a;
       border-color: #334155;
     }
-    button.active {
-      background: #16a34a;
-      border-color: #16a34a;
-    }
     button:hover {
       transform: translateY(-1px);
       box-shadow: 0 6px 12px rgba(0,0,0,0.4);
     }
-    .legend {
+
+    /* Оверлей арены */
+    #battleOverlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15,23,42,0.95);
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 999;
+    }
+    #battleOverlay.visible {
       display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
+    }
+    #battleInfo {
+      font-size: 13px;
+      color: #e5e7eb;
+      margin-bottom: 8px;
+      text-align: center;
+    }
+    #battleCanvas {
+      background: #020617;
+      border-radius: 16px;
+      border: 1px solid #1f2937;
+      box-shadow: 0 18px 36px rgba(0,0,0,0.8);
+    }
+    #battleHint {
+      margin-top: 6px;
       font-size: 11px;
       color: #9ca3af;
+      text-align: center;
     }
-    .legend-item {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-    }
-    .legend-symbol {
+    .badge {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      width: 14px;
-      height: 14px;
-      border-radius: 3px;
-      border: 1px solid #020617;
-      font-size: 9px;
-    }
-    .ua { background: #1d4ed8; }
-    .ru { background: #b91c1c; }
-    .factory-symbol { background: #facc15; }
-    .port-symbol { background: #0ea5e9; }
-
-    .map-shell {
-      background: radial-gradient(circle at top, #0b1120 0, #020617 50%, #000 100%);
-      border-radius: 16px;
+      padding: 0 6px;
+      font-size: 10px;
+      border-radius: 999px;
+      background: #0f172a;
       border: 1px solid #1f2937;
-      box-shadow: 0 18px 36px rgba(0,0,0,0.7);
-      padding: 10px;
-    }
-    svg {
-      width: 100%;
-      height: auto;
-      display: block;
-    }
-    .land-ua {
-      fill: #022c22;
-      stroke: #064e3b;
-      stroke-width: 2;
-    }
-    .land-ru {
-      fill: #111827;
-      stroke: #1f2937;
-      stroke-width: 2;
-    }
-    .sea {
-      fill: #0f172a;
-      stroke: #1d4ed8;
-      stroke-width: 1.5;
-    }
-    .border-line {
-      stroke: #f97316;
-      stroke-width: 2;
-      stroke-dasharray: 6 4;
-    }
-    .river {
-      fill: #0ea5e9;
-      opacity: 0.85;
-    }
-    .grid-line {
-      stroke: rgba(148,163,184,0.25);
-      stroke-width: 1;
-      stroke-dasharray: 4 4;
-    }
-    .grid-label {
-      font-size: 9px;
-      fill: #6b7280;
-      pointer-events: none;
-    }
-    .city-label {
-      font-size: 11px;
-      fill: #e5e7eb;
-      text-shadow: 0 0 3px #000;
-      pointer-events: none;
-    }
-    .city-dot {
-      fill: #f97316;
-      stroke: #020617;
-      stroke-width: 1.4;
-    }
-    .factory {
-      fill: #facc15;
-      stroke: #854d0e;
-      stroke-width: 1.4;
-    }
-    .factory.destroyed {
-      fill: #6b7280;
-      stroke: #374151;
-    }
-    .port {
-      fill: #0ea5e9;
-      stroke: #020617;
-      stroke-width: 1.4;
-    }
-    .airfield {
-      fill: #e5e7eb;
-      stroke: #020617;
-      stroke-width: 1.3;
-    }
-    .unit {
-      stroke: #020617;
-      stroke-width: 1.8;
-      cursor: pointer;
-      transition: transform 0.1s ease-out;
-    }
-    .unit.selected {
-      transform: scale(1.2);
-    }
-    .unit-ua { fill: #2563eb; }
-    .unit-ru { fill: #dc2626; }
-    .range-circle {
-      fill: none;
-      stroke: rgba(248,250,252,0.15);
-      stroke-width: 1.2;
-      stroke-dasharray: 4 4;
-      pointer-events: none;
-    }
-    .info-panel {
-      font-size: 12px;
-      color: #9ca3af;
-      padding: 8px 10px;
-      border-radius: 10px;
-      background: rgba(15,23,42,0.85);
-      border: 1px solid #1f2937;
-    }
-    .info-panel strong { color: #e5e7eb; font-weight: 500; }
-    .log-panel {
-      margin-top: 4px;
-      font-size: 11px;
-      color: #6b7280;
-      font-family: monospace;
-      background: rgba(15,23,42,0.8);
-      border-radius: 10px;
-      padding: 6px 10px;
-      border: 1px solid #111827;
-      max-height: 110px;
-      overflow-y: auto;
-      white-space: pre-line;
+      margin: 0 4px;
     }
   </style>
 </head>
 <body>
 <header>
-  <h1>Прототип операции: Киев — Донецк — Курск — Ростов</h1>
-  <p class="subtitle">
-    Условно-реальная карта, разные типы войск, дальность, скорость и объекты (заводы, порт, аэродром).
-  </p>
+  <h1>Шашки с PvP-ареной</h1>
+  <p class="subtitle">Попытка побить шашку запускает бой 1×1 сверху. Победитель остаётся на доске.</p>
 </header>
 
 <div class="layout">
-  <div class="top-bar">
-    <div class="controls">
-      <button id="btnUA" class="active">Ход Украины</button>
-      <button id="btnRU" class="secondary">Ход РФ</button>
-      <button id="btnReset" class="secondary">Сброс</button>
-    </div>
-    <div class="legend">
-      <div class="legend-item"><span class="legend-symbol ua">I</span> Пехота (сухопутная)</div>
-      <div class="legend-item"><span class="legend-symbol ua">A</span> Арта (дальний огонь)</div>
-      <div class="legend-item"><span class="legend-symbol ua">✈</span> Самолёт (аэродромы)</div>
-      <div class="legend-item"><span class="legend-symbol ua">⚓</span> Корабль (море)</div>
-      <div class="legend-item"><span class="legend-symbol factory-symbol"></span> Завод</div>
-      <div class="legend-item"><span class="legend-symbol port-symbol"></span> Порт</div>
+  <div class="board-wrapper">
+    <canvas id="board" width="480" height="480"></canvas>
+  </div>
+  <div class="info">
+    <div>Ход: <strong><span id="turnText">Белые</span></strong></div>
+    <div>Игроки ходят мышкой: клик по своей шашке → клик по клетке. При взятии запускается бой.</div>
+    <div style="margin-top:4px;">
+      <button id="resetBtn" class="secondary">Сбросить партию</button>
     </div>
   </div>
+  <div class="log" id="log">Игра загружена. Ход белых.</div>
+</div>
 
-  <div class="map-shell">
-    <!-- Условная карта: слева Украина, справа РФ, снизу море -->
-    <svg id="map" viewBox="0 0 1000 500" xmlns="http://www.w3.org/2000/svg">
-      <!-- Сетка км: условно 1px = 10 км, ширина ~1000px = 10 000 км (преувеличено для наглядности) -->
-      <!-- Для прототипа важна сама идея: линии + подписи -->
-      <g id="grid">
-        <!-- вертикальные -->
-        <line x1="100" y1="0" x2="100" y2="500" class="grid-line" />
-        <text x="90" y="14" class="grid-label">≈1000 км</text>
-        <line x1="300" y1="0" x2="300" y2="500" class="grid-line" />
-        <text x="290" y="14" class="grid-label">≈3000 км</text>
-        <line x1="500" y1="0" x2="500" y2="500" class="grid-line" />
-        <text x="490" y="14" class="grid-label">≈5000 км</text>
-        <line x1="700" y1="0" x2="700" y2="500" class="grid-line" />
-        <text x="690" y="14" class="grid-label">≈7000 км</text>
-        <line x1="900" y1="0" x2="900" y2="500" class="grid-line" />
-        <text x="890" y="14" class="grid-label">≈9000 км</text>
-      </g>
-
-      <!-- Море (внизу справа) -->
-      <rect x="550" y="320" width="450" height="180" class="sea" />
-
-      <!-- Украина (левый массив) -->
-      <path
-        class="land-ua"
-        d="
-          M 40 60
-          L 460 60
-          L 520 110
-          L 520 260
-          L 480 310
-          L 320 320
-          L 260 350
-          L 140 340
-          L 60 300
-          L 40 240
-          Z
-        "
-      />
-      <!-- РФ (правый массив) -->
-      <path
-        class="land-ru"
-        d="
-          M 520 60
-          L 960 60
-          L 960 280
-          L 900 300
-          L 780 290
-          L 720 260
-          L 650 270
-          L 600 250
-          L 560 220
-          L 520 180
-          Z
-        "
-      />
-
-      <!-- Граница (условная линия между UA и РФ) -->
-      <path
-        class="border-line"
-        d="
-          M 520 60
-          L 520 110
-          L 520 180
-          L 560 220
-        "
-      />
-
-      <!-- Река (условный Днепр, стилизованно возле Киева) -->
-      <path
-        class="river"
-        d="
-          M 260 60
-          C 270 120, 250 180, 270 230
-          C 290 280, 260 320, 270 360
-          L 300 380
-          C 290 330, 310 280, 295 230
-          C 280 180, 300 120, 290 60
-          Z
-        "
-      />
-
-      <!-- Города: Киев, Донецк, Курск, Ростов (условные координаты) -->
-      <circle id="city_kyiv" class="city-dot" cx="260" cy="140" r="4" />
-      <text x="270" y="136" class="city-label">Киев</text>
-
-      <circle id="city_donetsk" class="city-dot" cx="420" cy="240" r="4" />
-      <text x="430" y="236" class="city-label">Донецк</text>
-
-      <circle id="city_kursk" class="city-dot" cx="640" cy="140" r="4" />
-      <text x="650" y="136" class="city-label">Курск</text>
-
-      <circle id="city_rostov" class="city-dot" cx="760" cy="260" r="4" />
-      <text x="770" y="256" class="city-label">Ростов</text>
-
-      <!-- Порт (в море, возле "Ростова") -->
-      <rect id="port_azov" x="730" y="340" width="20" height="14" class="port" />
-      <text x="755" y="350" class="city-label">Порт</text>
-
-      <!-- Аэродром возле Киева -->
-      <polygon
-        id="airfield_kyiv"
-        class="airfield"
-        points="230,180 242,168 254,180 242,192"
-      />
-      <text x="210" y="200" class="city-label">Аэродром</text>
-
-      <!-- Заводы (UA и РФ) -->
-      <rect id="factory_ua" x="300" y="260" width="20" height="16" class="factory" />
-      <text x="325" y="272" class="city-label">Завод UA</text>
-
-      <rect id="factory_ru" x="680" y="200" width="20" height="16" class="factory" />
-      <text x="705" y="212" class="city-label">Завод РФ</text>
-
-      <!-- ДАЛЬНОСТЬ (круги) будут дорисовываться скриптом как <circle class="range-circle"> -->
-
-      <!-- ЮНИТЫ -->
-      <!-- Украина: пехота под Киевом -->
-      <rect id="unit_ua_inf"
-            class="unit unit-ua"
-            data-side="UA" data-type="INF"
-            x="245" y="155" width="14" height="14" rx="2" ry="2" />
-      <!-- Украина: арта возле завода -->
-      <rect id="unit_ua_art"
-            class="unit unit-ua"
-            data-side="UA" data-type="ART"
-            x="330" y="260" width="16" height="10" />
-      <!-- Украина: самолёт на аэродроме -->
-      <polygon id="unit_ua_plane"
-               class="unit unit-ua"
-               data-side="UA" data-type="PLANE"
-               points="242,200 248,210 242,222 236,210" />
-
-      <!-- РФ: пехота возле Курска -->
-      <rect id="unit_ru_inf"
-            class="unit unit-ru"
-            data-side="RU" data-type="INF"
-            x="630" y="155" width="14" height="14" rx="2" ry="2" />
-      <!-- РФ: арта возле завода РФ -->
-      <rect id="unit_ru_art"
-            class="unit unit-ru"
-            data-side="RU" data-type="ART"
-            x="710" y="200" width="16" height="10" />
-      <!-- РФ: корабль в порту -->
-      <circle id="unit_ru_ship"
-              class="unit unit-ru"
-              data-side="RU" data-type="SHIP"
-              cx="740" cy="360" r="7" />
-
-    </svg>
+<!-- Оверлей арены -->
+<div id="battleOverlay">
+  <div id="battleInfo">
+    PvP-бой за шашку. <br/>
+    <span class="badge">Игрок 1 (атакующий): W A S D + Space (стрельба)</span><br/>
+    <span class="badge">Игрок 2 (защищающийся): I J K L + Enter (стрельба)</span><br/>
+    В круге безопасной зоны дамаг не идёт. Вне круга здоровье тает.
   </div>
-
-  <div class="info-panel">
-    <div><strong>Управление:</strong> клик по юниту — выбрать, клик по карте — задать точку движения.</div>
-    <div>Скорость и дальность завязаны на условный масштаб (≈10 км на 1 пиксель). Арта и корабль автоматически разрушают завод, если входят в радиус.</div>
-    <div>Самолёт может "садиться" на аэродром: если цель близко к аэродрому — считается, что он на базе.</div>
-  </div>
-
-  <div class="log-panel" id="log">
-    Загрузка прототипа...
-  </div>
+  <canvas id="battleCanvas" width="640" height="400"></canvas>
+  <div id="battleHint">Ждите, пока один умрёт. После этого бой закроется и шашка останется/умрёт.</div>
 </div>
 
 <script>
-  (function () {
-    const svg = document.getElementById("map");
-    const logEl = document.getElementById("log");
+(function() {
+  // ==========================
+  // ЛОГ УТИЛИТА
+  // ==========================
+  const logEl = document.getElementById('log');
+  function log(msg) {
+    const t = new Date().toLocaleTimeString('ru-RU', { hour12: false });
+    const text = `[${t}] ${msg}`;
+    logEl.textContent = text + '\n' + logEl.textContent;
+  }
 
-    const btnUA = document.getElementById("btnUA");
-    const btnRU = document.getElementById("btnRU");
-    const btnReset = document.getElementById("btnReset");
+  // ==========================
+  // ШАШКИ: МОДЕЛЬ
+  // ==========================
+  const boardCanvas = document.getElementById('board');
+  const bctx = boardCanvas.getContext('2d');
+  const SIZE = 8;
+  const CELL = boardCanvas.width / SIZE;
 
-    const factoryUA = document.getElementById("factory_ua");
-    const factoryRU = document.getElementById("factory_ru");
-    const airfieldKyiv = document.getElementById("airfield_kyiv");
-    const portAzov = document.getElementById("port_azov");
+  // board[y][x] = {color:'w'|'b', king:boolean}
+  let board = [];
+  let currentPlayer = 'w'; // w = белые, b = чёрные
+  let selected = null; // {x,y}
+  let battlePending = null; // контекст боя
+  const turnText = document.getElementById('turnText');
 
-    let currentSide = "UA";  // "UA" или "RU"
-    let selectedUnitId = null;
-
-    // условный масштаб
-    const KM_PER_PX = 10;
-
-    // базовая модель юнитов
-    const units = {
-      unit_ua_inf: {
-        id: "unit_ua_inf",
-        type: "INF",
-        side: "UA",
-        speedKmH: 40,   // пехота
-        rangeKm: 0,
-        x: 252,
-        y: 162,
-      },
-      unit_ua_art: {
-        id: "unit_ua_art",
-        type: "ART",
-        side: "UA",
-        speedKmH: 20,
-        rangeKm: 80,   // дальность обстрела
-        x: 338,
-        y: 265,
-      },
-      unit_ua_plane: {
-        id: "unit_ua_plane",
-        type: "PLANE",
-        side: "UA",
-        speedKmH: 600,
-        rangeKm: 200,  // зона действия для бомбометания
-        x: 242,
-        y: 210,
-      },
-      unit_ru_inf: {
-        id: "unit_ru_inf",
-        type: "INF",
-        side: "RU",
-        speedKmH: 40,
-        rangeKm: 0,
-        x: 637,
-        y: 162,
-      },
-      unit_ru_art: {
-        id: "unit_ru_art",
-        type: "ART",
-        side: "RU",
-        speedKmH: 20,
-        rangeKm: 80,
-        x: 718,
-        y: 205,
-      },
-      unit_ru_ship: {
-        id: "unit_ru_ship",
-        type: "SHIP",
-        side: "RU",
-        speedKmH: 30,
-        rangeKm: 100,
-        x: 740,
-        y: 360,
-      },
-    };
-
-    // текущие цели движения
-    const movement = {
-      // id: { targetX, targetY, vx, vy }
-    };
-
-    // range circles для арты/самолётов/кораблей
-    const rangeCircles = {};
-
-    function log(msg) {
-      const t = new Date().toLocaleTimeString("ru-RU", { hour12: false });
-      const current = logEl.textContent.trim();
-      const line = `[${t}] ${msg}`;
-      logEl.textContent = current ? line + "\n" + current : line;
-    }
-
-    function setTurn(side) {
-      currentSide = side;
-      if (side === "UA") {
-        btnUA.classList.add("active");
-        btnUA.classList.remove("secondary");
-        btnRU.classList.add("secondary");
-        btnRU.classList.remove("active");
-      } else {
-        btnRU.classList.add("active");
-        btnRU.classList.remove("secondary");
-        btnUA.classList.add("secondary");
-        btnUA.classList.remove("active");
+  function initBoard() {
+    board = [];
+    for (let y = 0; y < SIZE; y++) {
+      const row = [];
+      for (let x = 0; x < SIZE; x++) {
+        row.push(null);
       }
-      log(`Ход стороны: ${side}`);
-      // снимаем выделение
-      deselectAllUnits();
+      board.push(row);
     }
-
-    function deselectAllUnits() {
-      Object.values(units).forEach(u => {
-        const el = document.getElementById(u.id);
-        el.classList.remove("selected");
-      });
-      selectedUnitId = null;
-      removeAllRangeCircles();
+    // простая начальная расстановка: чёрные сверху (0-2), белые снизу (5-7)
+    for (let y = 0; y < 3; y++) {
+      for (let x = 0; x < SIZE; x++) {
+        if ((x + y) % 2 === 1) {
+          board[y][x] = { color: 'b', king: false };
+        }
+      }
     }
+    for (let y = 5; y < 8; y++) {
+      for (let x = 0; x < SIZE; x++) {
+        if ((x + y) % 2 === 1) {
+          board[y][x] = { color: 'w', king: false };
+        }
+      }
+    }
+    currentPlayer = 'w';
+    selected = null;
+    battlePending = null;
+    updateTurnText();
+    drawBoard();
+  }
 
-    function selectUnit(id) {
-      const u = units[id];
-      if (!u) return;
-      if (u.side !== currentSide) {
-        log(`Это юнит стороны ${u.side}, сейчас ход ${currentSide}.`);
+  function updateTurnText() {
+    turnText.textContent = currentPlayer === 'w' ? 'Белые' : 'Чёрные';
+  }
+
+  function drawBoard() {
+    // клетки
+    for (let y = 0; y < SIZE; y++) {
+      for (let x = 0; x < SIZE; x++) {
+        const dark = (x + y) % 2 === 1;
+        bctx.fillStyle = dark ? '#111827' : '#e5e7eb';
+        bctx.fillRect(x * CELL, y * CELL, CELL, CELL);
+
+        // подсветка выбранной клетки
+        if (selected && selected.x === x && selected.y === y) {
+          bctx.fillStyle = 'rgba(250,204,21,0.3)';
+          bctx.fillRect(x * CELL, y * CELL, CELL, CELL);
+        }
+
+        const piece = board[y][x];
+        if (piece) {
+          bctx.beginPath();
+          bctx.arc(
+            x * CELL + CELL / 2,
+            y * CELL + CELL / 2,
+            CELL * 0.35,
+            0, Math.PI * 2
+          );
+          bctx.fillStyle = piece.color === 'w' ? '#f9fafb' : '#0f172a';
+          bctx.fill();
+          bctx.lineWidth = 2;
+          bctx.strokeStyle = piece.color === 'w' ? '#e5e7eb' : '#374151';
+          bctx.stroke();
+
+          // дамка
+          if (piece.king) {
+            bctx.beginPath();
+            bctx.arc(
+              x * CELL + CELL / 2,
+              y * CELL + CELL / 2,
+              CELL * 0.18,
+              0, Math.PI * 2
+            );
+            bctx.fillStyle = piece.color === 'w' ? '#fbbf24' : '#f97316';
+            bctx.fill();
+          }
+        }
+      }
+    }
+  }
+
+  function getCellFromEvent(evt) {
+    const rect = boardCanvas.getBoundingClientRect();
+    const x = Math.floor((evt.clientX - rect.left) / CELL);
+    const y = Math.floor((evt.clientY - rect.top) / CELL);
+    if (x < 0 || x >= SIZE || y < 0 || y >= SIZE) return null;
+    return { x, y };
+  }
+
+  function isDarkCell(x, y) {
+    return (x + y) % 2 === 1;
+  }
+
+  function handleBoardClick(evt) {
+    if (battleActive) return; // во время боя доска не реагирует
+    const cell = getCellFromEvent(evt);
+    if (!cell) return;
+    const { x, y } = cell;
+    if (!isDarkCell(x, y)) return;
+
+    const piece = board[y][x];
+
+    if (selected) {
+      // попытка хода/боя
+      if (selected.x === x && selected.y === y) {
+        selected = null;
+        drawBoard();
         return;
       }
-      deselectAllUnits();
-      const el = document.getElementById(id);
-      el.classList.add("selected");
-      selectedUnitId = id;
-      log(`Выбран юнит ${id} (${u.type}, сторона ${u.side}).`);
-      drawRangeCircle(u);
-    }
-
-    function drawRangeCircle(u) {
-      removeAllRangeCircles();
-      if (!u.rangeKm || u.rangeKm <= 0) return;
-      const rPx = u.rangeKm / KM_PER_PX;
-      const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-      circle.setAttribute("class", "range-circle");
-      circle.setAttribute("cx", u.x);
-      circle.setAttribute("cy", u.y);
-      circle.setAttribute("r", rPx);
-      svg.appendChild(circle);
-      rangeCircles[u.id] = circle;
-    }
-
-    function removeAllRangeCircles() {
-      Object.keys(rangeCircles).forEach(id => {
-        const c = rangeCircles[id];
-        if (c && c.parentNode) c.parentNode.removeChild(c);
-        delete rangeCircles[id];
-      });
-    }
-
-    function setUnitPosition(id, x, y) {
-      const u = units[id];
-      if (!u) return;
-      u.x = x;
-      u.y = y;
-      const el = document.getElementById(id);
-      if (!el) return;
-      const tag = el.tagName.toLowerCase();
-      if (tag === "rect") {
-        const w = parseFloat(el.getAttribute("width")) || 10;
-        const h = parseFloat(el.getAttribute("height")) || 10;
-        el.setAttribute("x", x - w / 2);
-        el.setAttribute("y", y - h / 2);
-      } else if (tag === "circle") {
-        el.setAttribute("cx", x);
-        el.setAttribute("cy", y);
-      } else if (tag === "polygon") {
-        // смещаем все точки полигона относительно центра
-        const points = el.getAttribute("points").trim().split(" ").map(p => {
-          const [px, py] = p.split(",").map(Number);
-          return { px, py };
-        });
-        // на старте polygon уже стоит в нужном месте, лучше хранить смещения отдельно,
-        // но для прототипа примем, что полигон маленький и допускаем грубость:
-        // просто ставим его центром в (x,y) через transform
-        el.setAttribute("transform", `translate(${x - u.x}, ${y - u.y})`);
+      tryMove(selected.x, selected.y, x, y);
+      return;
+    } else {
+      // выбор своей шашки
+      if (piece && piece.color === currentPlayer) {
+        selected = { x, y };
+        drawBoard();
+        return;
       }
-      // обновляем круг дальности
-      drawRangeCircle(u);
+    }
+  }
+
+  function tryMove(fromX, fromY, toX, toY) {
+    const piece = board[fromY][fromX];
+    if (!piece) {
+      selected = null;
+      drawBoard();
+      return;
+    }
+    if (board[toY][toX]) {
+      // занято
+      selected = null;
+      drawBoard();
+      return;
     }
 
-    function dist(x1,y1,x2,y2) {
-      const dx = x2-x1, dy = y2-y1;
-      return Math.sqrt(dx*dx+dy*dy);
+    const dx = toX - fromX;
+    const dy = toY - fromY;
+
+    // простое движение на 1 вперёд по диагонали
+    const dir = piece.color === 'w' ? -1 : 1; // белые сверху вниз? у нас белые внизу -> ходят вверх (-1)
+    const absDx = Math.abs(dx);
+    const absDy = Math.abs(dy);
+
+    // движение без боя
+    if (absDx === 1 && absDy === 1) {
+      // для обычной шашки ограничим движение только вперёд
+      if (!piece.king && dy !== dir) {
+        selected = null;
+        drawBoard();
+        return;
+      }
+      board[toY][toX] = piece;
+      board[fromY][fromX] = null;
+      maybeKing(piece, toY);
+      endTurn();
+      return;
     }
 
-    function worldCoordsFromEvent(evt) {
-      const pt = svg.createSVGPoint();
-      pt.x = evt.clientX;
-      pt.y = evt.clientY;
-      const ctm = svg.getScreenCTM();
-      if (!ctm) return { x: 0, y: 0 };
-      const inv = ctm.inverse();
-      const loc = pt.matrixTransform(inv);
-      return { x: loc.x, y: loc.y };
+    // попытка боя: прыжок через одну клетку по диагонали
+    if (absDx === 2 && absDy === 2) {
+      const midX = fromX + dx / 2;
+      const midY = fromY + dy / 2;
+      const midPiece = board[midY][midX];
+      if (!midPiece || midPiece.color === piece.color) {
+        selected = null;
+        drawBoard();
+        return;
+      }
+      // здесь запускаем PvP вместо автоматического снятия
+      battlePending = {
+        fromX, fromY,
+        midX, midY,
+        toX, toY,
+        attackerColor: piece.color,
+        defenderColor: midPiece.color,
+        attackerIsKing: piece.king,
+        defenderIsKing: midPiece.king
+      };
+      selected = null;
+      drawBoard();
+      startBattle(battlePending);
+      return;
     }
 
-    function setMoveTarget(unitId, tx, ty) {
-      const u = units[unitId];
-      if (!u) return;
-      // ограничения по типам:
-      if (u.type === "SHIP") {
-        // корабль должен оставаться в море (примитивная проверка по y>320 и x>550)
-        if (!(tx > 550 && ty > 320)) {
-          log("Корабль должен оставаться в море (нижняя правая зона).");
+    // иначе ничего
+    selected = null;
+    drawBoard();
+  }
+
+  function maybeKing(piece, y) {
+    if (piece.king) return;
+    if (piece.color === 'w' && y === 0) piece.king = true;
+    if (piece.color === 'b' && y === SIZE - 1) piece.king = true;
+  }
+
+  function endTurn() {
+    currentPlayer = currentPlayer === 'w' ? 'b' : 'w';
+    updateTurnText();
+    drawBoard();
+    log(`Ход передан. Теперь ходит ${currentPlayer === 'w' ? 'Белые' : 'Чёрные'}.`);
+  }
+
+  // результат боя: 'attacker' или 'defender'
+  function resolveBattleResult(result) {
+    if (!battlePending) return;
+    const ctx = battlePending;
+    battlePending = null;
+
+    const attackerPiece = board[ctx.fromY][ctx.fromX];
+    const defenderPiece = board[ctx.midY][ctx.midX];
+
+    if (!attackerPiece || !defenderPiece) {
+      drawBoard();
+      return;
+    }
+
+    if (result === 'attacker') {
+      // атакующий побеждает: обычный шашечный результат
+      board[ctx.midY][ctx.midX] = null;
+      board[ctx.fromY][ctx.fromX] = null;
+      board[ctx.toY][ctx.toX] = attackerPiece;
+      maybeKing(attackerPiece, ctx.toY);
+      log(`Атакующий выигрывает PvP. Шашка ${attackerPiece.color === 'w' ? 'белых' : 'чёрных'} продвигается и бьёт.`);
+      endTurn();
+    } else {
+      // защитник побеждает: атакующая шашка погибает, защищающаяся остаётся
+      board[ctx.fromY][ctx.fromX] = null;
+      // защитник остаётся на месте
+      log(`Защитник выигрывает PvP. Атакующая шашка уничтожена, оборона удержана.`);
+      endTurn();
+    }
+
+    drawBoard();
+  }
+
+  // ==========================
+  // ШАШКИ: ИНИЦИАЛИЗАЦИЯ
+  // ==========================
+  boardCanvas.addEventListener('click', handleBoardClick);
+  document.getElementById('resetBtn').addEventListener('click', () => {
+    initBoard();
+    log('Партия сброшена.');
+  });
+  initBoard();
+
+  // ==========================
+  // PVP-АРЕНА
+  // ==========================
+  const battleOverlay = document.getElementById('battleOverlay');
+  const battleCanvas = document.getElementById('battleCanvas');
+  const ctx = battleCanvas.getContext('2d');
+
+  let battleActive = false;
+  let lastTime = 0;
+
+  const keys = {};
+  window.addEventListener('keydown', e => { keys[e.code] = true; });
+  window.addEventListener('keyup', e => { keys[e.code] = false; });
+
+  let player1, player2, bullets, safeZone, boxes;
+
+  function startBattle(ctxInfo) {
+    battleActive = true;
+    battleOverlay.classList.add('visible');
+    // параметры игроков
+    // базовые характеристики
+    const baseHP = 100;
+    const baseSpeed = 120; // px/сек
+    const baseDamage = 20;
+
+    // если дамка -> баф
+    const atkBuff = ctxInfo.attackerIsKing ? 1.5 : 1.0;
+    const defBuff = ctxInfo.defenderIsKing ? 1.5 : 1.0;
+
+    player1 = {
+      // атакующий — слева
+      x: battleCanvas.width * 0.25,
+      y: battleCanvas.height * 0.5,
+      r: 12,
+      color: '#38bdf8',
+      hp: baseHP * atkBuff,
+      maxHp: baseHP * atkBuff,
+      speed: baseSpeed * (1 + (atkBuff - 1) * 0.3),
+      damage: baseDamage * atkBuff,
+      cooldown: 0,
+      cooldownTime: 0.4 / atkBuff // чем сильнее, тем чаще стреляет
+    };
+    player2 = {
+      // защитник — справа
+      x: battleCanvas.width * 0.75,
+      y: battleCanvas.height * 0.5,
+      r: 12,
+      color: '#f97316',
+      hp: baseHP * defBuff,
+      maxHp: baseHP * defBuff,
+      speed: baseSpeed * (1 + (defBuff - 1) * 0.3),
+      damage: baseDamage * defBuff,
+      cooldown: 0,
+      cooldownTime: 0.4 / defBuff
+    };
+
+    bullets = [];
+
+    safeZone = {
+      cx: battleCanvas.width / 2,
+      cy: battleCanvas.height / 2,
+      radius: 220,
+      shrinkRate: 15 // пикселей в секунду
+    };
+
+    boxes = [
+      { x: 260, y: 160, w: 40, h: 60 },
+      { x: 340, y: 260, w: 60, h: 40 },
+      { x: 190, y: 260, w: 40, h: 40 },
+      { x: 420, y: 140, w: 40, h: 40 }
+    ];
+
+    lastTime = performance.now();
+    requestAnimationFrame(battleLoop);
+    log(`Запущен PvP-бой: атакующий (${ctxInfo.attackerColor}), защитник (${ctxInfo.defenderColor}). Дамка даёт усиление.`);
+  }
+
+  function endBattleInternal(winner) {
+    battleActive = false;
+    battleOverlay.classList.remove('visible');
+    resolveBattleResult(winner);
+  }
+
+  function battleLoop(timestamp) {
+    if (!battleActive) return;
+    const dt = (timestamp - lastTime) / 1000;
+    lastTime = timestamp;
+
+    updateBattle(dt);
+    drawBattle();
+
+    if (battleActive) {
+      requestAnimationFrame(battleLoop);
+    }
+  }
+
+  function updateBattle(dt) {
+    // управление игроками
+    handlePlayerMovement(player1, dt, {
+      up: 'KeyW', down: 'KeyS', left: 'KeyA', right: 'KeyD'
+    });
+    handlePlayerMovement(player2, dt, {
+      up: 'KeyI', down: 'KeyK', left: 'KeyJ', right: 'KeyL'
+    });
+
+    // стрельба
+    handleShooting(player1, dt, 'Space', player2);
+    handleShooting(player2, dt, 'Enter', player1);
+
+    // обновляем пули
+    for (let i = bullets.length - 1; i >= 0; i--) {
+      const b = bullets[i];
+      b.x += b.vx * dt;
+      b.y += b.vy * dt;
+
+      // вылетело за экран
+      if (b.x < 0 || b.x > battleCanvas.width || b.y < 0 || b.y > battleCanvas.height) {
+        bullets.splice(i, 1);
+        continue;
+      }
+
+      // столкновение с ящиками
+      if (bulletHitsBox(b)) {
+        bullets.splice(i, 1);
+        continue;
+      }
+
+      // попадание
+      if (!b.fromP1 && circleHit(player1, b)) {
+        player1.hp -= b.damage;
+        bullets.splice(i, 1);
+        if (player1.hp <= 0) {
+          player1.hp = 0;
+          log('Игрок 1 погиб. Победил защитник.');
+          endBattleInternal('defender');
           return;
         }
+        continue;
       }
-      const dx = tx - u.x;
-      const dy = ty - u.y;
-      const dPx = Math.sqrt(dx*dx + dy*dy);
-      if (dPx < 1) return;
-      const distKm = dPx * KM_PER_PX;
-      const speed = u.speedKmH;
-      const timeSec = (distKm / speed) * 3600; // t = s / v
-      const vx = dx / timeSec;
-      const vy = dy / timeSec;
-      movement[unitId] = { targetX: tx, targetY: ty, vx, vy };
-      log(`Юнит ${unitId} двигается на точку (${tx.toFixed(1)}, ${ty.toFixed(1)}). Расстояние ≈${distKm.toFixed(0)} км.`);
-    }
-
-    function stepMovement(dt) {
-      const ids = Object.keys(movement);
-      ids.forEach(id => {
-        const u = units[id];
-        const m = movement[id];
-        if (!u || !m) return;
-        const newX = u.x + m.vx * dt;
-        const newY = u.y + m.vy * dt;
-        const dToTarget = dist(newX, newY, m.targetX, m.targetY);
-        if (dToTarget < 2) {
-          setUnitPosition(id, m.targetX, m.targetY);
-          delete movement[id];
-          log(`Юнит ${id} достиг точки.`);
-          checkEffects(u);
-        } else {
-          setUnitPosition(id, newX, newY);
-          checkEffects(u);
+      if (b.fromP1 && circleHit(player2, b)) {
+        player2.hp -= b.damage;
+        bullets.splice(i, 1);
+        if (player2.hp <= 0) {
+          player2.hp = 0;
+          log('Игрок 2 погиб. Победил атакующий.');
+          endBattleInternal('attacker');
+          return;
         }
-      });
-    }
-
-    // эффекты: разрушение заводов, "посадка" самолёта
-    function checkEffects(u) {
-      // дистанция до объектов
-      const fUaBox = factoryUA.getBBox();
-      const fUaX = fUaBox.x + fUaBox.width/2;
-      const fUaY = fUaBox.y + fUaBox.height/2;
-
-      const fRuBox = factoryRU.getBBox();
-      const fRuX = fRuBox.x + fRuBox.width/2;
-      const fRuY = fRuBox.y + fRuBox.height/2;
-
-      const airBox = airfieldKyiv.getBBox();
-      const airX = airBox.x + airBox.width/2;
-      const airY = airBox.y + airBox.height/2;
-
-      const portBox = portAzov.getBBox();
-      const portX = portBox.x + portBox.width/2;
-      const portY = portBox.y + portBox.height/2;
-
-      // дальность в пикселях
-      const rPx = u.rangeKm / KM_PER_PX;
-
-      // Арта/корабль: ломают завод противника, если в радиусе
-      if (u.type === "ART" || u.type === "SHIP") {
-        if (u.side === "UA") {
-          const d = dist(u.x, u.y, fRuX, fRuY);
-          if (d <= rPx && !factoryRU.classList.contains("destroyed")) {
-            factoryRU.classList.add("destroyed");
-            log("Завод РФ уничтожен огнём UA.");
-          }
-        } else if (u.side === "RU") {
-          const d = dist(u.x, u.y, fUaX, fUaY);
-          if (d <= rPx && !factoryUA.classList.contains("destroyed")) {
-            factoryUA.classList.add("destroyed");
-            log("Завод UA уничтожен огнём РФ.");
-          }
-        }
-      }
-
-      // Самолёт UA: если рядом с аэродромом — считаем, что на базе
-      if (u.type === "PLANE" && u.side === "UA") {
-        const dAir = dist(u.x, u.y, airX, airY);
-        if (dAir < 20) {
-          // "посадка"
-          // просто лог
-          log("Самолёт UA находится на аэродроме под Киевом.");
-        }
-      }
-
-      // Корабль РФ: если рядом с портом — "в порту"
-      if (u.type === "SHIP" && u.side === "RU") {
-        const dPort = dist(u.x, u.y, portX, portY);
-        if (dPort < 20) {
-          log("Корабль РФ находится в порту.");
-        }
+        continue;
       }
     }
 
-    // клики по юнитам
-    Object.values(units).forEach(u => {
-      const el = document.getElementById(u.id);
-      if (!el) return;
-      setUnitPosition(u.id, u.x, u.y); // выставим центр корректно
-      el.addEventListener("click", (evt) => {
-        evt.stopPropagation();
-        selectUnit(u.id);
-      });
+    // зона: сужение + дамаг
+    safeZone.radius -= safeZone.shrinkRate * dt;
+    if (safeZone.radius < 40) safeZone.radius = 40;
+
+    applyZoneDamage(player1, dt);
+    applyZoneDamage(player2, dt);
+
+    if (player1.hp <= 0 && player2.hp <= 0) {
+      // ничья: можно считать, что защитник удержал, или убили оба
+      log('Оба погибли. Считаем, что оборона удержана.');
+      endBattleInternal('defender');
+      return;
+    } else if (player1.hp <= 0) {
+      player1.hp = 0;
+      log('Игрок 1 погиб от зоны/огня. Победил защитник.');
+      endBattleInternal('defender');
+      return;
+    } else if (player2.hp <= 0) {
+      player2.hp = 0;
+      log('Игрок 2 погиб от зоны/огня. Победил атакующий.');
+      endBattleInternal('attacker');
+      return;
+    }
+  }
+
+  function handlePlayerMovement(p, dt, keysMap) {
+    let vx = 0, vy = 0;
+    if (keys[keysMap.up]) vy -= 1;
+    if (keys[keysMap.down]) vy += 1;
+    if (keys[keysMap.left]) vx -= 1;
+    if (keys[keysMap.right]) vx += 1;
+    const len = Math.hypot(vx, vy) || 1;
+    vx /= len; vy /= len;
+
+    const speed = p.speed;
+    let newX = p.x + vx * speed * dt;
+    let newY = p.y + vy * speed * dt;
+
+    // границы арены
+    const margin = p.r + 4;
+    newX = Math.max(margin, Math.min(battleCanvas.width - margin, newX));
+    newY = Math.max(margin, Math.min(battleCanvas.height - margin, newY));
+
+    // коллизия с ящиками
+    const temp = { x: newX, y: newY, r: p.r };
+    for (const box of boxes) {
+      if (circleBoxCollision(temp, box)) {
+        // не двигаем, если врезались
+        return;
+      }
+    }
+
+    p.x = newX;
+    p.y = newY;
+  }
+
+  function handleShooting(p, dt, keyCode, enemy) {
+    p.cooldown -= dt;
+    if (p.cooldown < 0) p.cooldown = 0;
+    if (!keys[keyCode]) return;
+    if (p.cooldown > 0) return;
+
+    // направление: стреляем в сторону врага
+    const dx = enemy.x - p.x;
+    const dy = enemy.y - p.y;
+    const len = Math.hypot(dx, dy) || 1;
+    const dirX = dx / len;
+    const dirY = dy / len;
+    const speed = 260;
+
+    bullets.push({
+      x: p.x,
+      y: p.y,
+      vx: dirX * speed,
+      vy: dirY * speed,
+      damage: p.damage,
+      fromP1: (p === player1)
     });
 
-    // клик по карте (движение)
-    svg.addEventListener("click", (evt) => {
-      if (!selectedUnitId) return;
-      const u = units[selectedUnitId];
-      if (!u) return;
-      const { x, y } = worldCoordsFromEvent(evt);
-      setMoveTarget(u.id, x, y);
-    });
+    p.cooldown = p.cooldownTime;
+  }
 
-    // смена хода
-    btnUA.addEventListener("click", () => setTurn("UA"));
-    btnRU.addEventListener("click", () => setTurn("RU"));
+  function bulletHitsBox(b) {
+    for (const box of boxes) {
+      if (b.x >= box.x && b.x <= box.x + box.w &&
+          b.y >= box.y && b.y <= box.y + box.h) {
+        return true;
+      }
+    }
+    return false;
+  }
 
-    // сброс
-    btnReset.addEventListener("click", () => {
-      // восстановим позицию юнитов и заводы
-      units.unit_ua_inf.x = 252; units.unit_ua_inf.y = 162;
-      units.unit_ua_art.x = 338; units.unit_ua_art.y = 265;
-      units.unit_ua_plane.x = 242; units.unit_ua_plane.y = 210;
+  function circleHit(p, b) {
+    const dx = p.x - b.x;
+    const dy = p.y - b.y;
+    const dist = Math.hypot(dx, dy);
+    return dist <= p.r;
+  }
 
-      units.unit_ru_inf.x = 637; units.unit_ru_inf.y = 162;
-      units.unit_ru_art.x = 718; units.unit_ru_art.y = 205;
-      units.unit_ru_ship.x = 740; units.unit_ru_ship.y = 360;
+  function circleBoxCollision(circle, box) {
+    const closestX = Math.max(box.x, Math.min(circle.x, box.x + box.w));
+    const closestY = Math.max(box.y, Math.min(circle.y, box.y + box.h));
+    const dx = circle.x - closestX;
+    const dy = circle.y - closestY;
+    return dx*dx + dy*dy < circle.r * circle.r;
+  }
 
-      Object.values(units).forEach(u => setUnitPosition(u.id, u.x, u.y));
-      Object.keys(movement).forEach(id => delete movement[id]);
-      factoryUA.classList.remove("destroyed");
-      factoryRU.classList.remove("destroyed");
-      deselectAllUnits();
-      setTurn("UA");
-      log("Сброс прототипа: позиции войск и заводов восстановлены.");
-    });
+  function applyZoneDamage(p, dt) {
+    const dx = p.x - safeZone.cx;
+    const dy = p.y - safeZone.cy;
+    const d = Math.hypot(dx, dy);
+    if (d > safeZone.radius) {
+      // дамаг от зоны
+      p.hp -= 15 * dt;
+    }
+  }
 
-    // основной цикл
-    let lastTime = performance.now();
-    function loop(now) {
-      const dtSec = (now - lastTime)/1000;
-      lastTime = now;
-      stepMovement(dtSec);
-      requestAnimationFrame(loop);
+  function drawBattle() {
+    ctx.clearRect(0, 0, battleCanvas.width, battleCanvas.height);
+
+    // фон
+    ctx.fillStyle = '#020617';
+    ctx.fillRect(0, 0, battleCanvas.width, battleCanvas.height);
+
+    // зона
+    ctx.beginPath();
+    ctx.arc(safeZone.cx, safeZone.cy, safeZone.radius, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(56,189,248,0.06)';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(56,189,248,0.8)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // граница арены
+    ctx.strokeStyle = '#1f2937';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(4, 4, battleCanvas.width - 8, battleCanvas.height - 8);
+
+    // ящики
+    for (const box of boxes) {
+      ctx.fillStyle = '#1f2937';
+      ctx.fillRect(box.x, box.y, box.w, box.h);
+      ctx.strokeStyle = '#111827';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(box.x, box.y, box.w, box.h);
     }
 
-    // старт
-    setTurn("UA");
-    log("Прототип загружен. Выбери юнит, кликни по карте — он пойдёт с реальной скоростью (в км/ч, переведённой в пиксели/сек). Арта и корабль могут разрушать заводы в радиусе.");
+    // пули
+    for (const b of bullets) {
+      ctx.beginPath();
+      ctx.arc(b.x, b.y, 3, 0, Math.PI * 2);
+      ctx.fillStyle = b.fromP1 ? '#38bdf8' : '#f97316';
+      ctx.fill();
+    }
 
-    requestAnimationFrame(loop);
-  })();
+    // игроки
+    drawPlayer(player1);
+    drawPlayer(player2);
+
+    // HP-панель
+    drawHPBars();
+  }
+
+  function drawPlayer(p) {
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+    ctx.fillStyle = p.color;
+    ctx.fill();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#020617';
+    ctx.stroke();
+
+    // маленький "ствол" в сторону центра (визуал)
+    ctx.beginPath();
+    ctx.moveTo(p.x, p.y);
+    const angleToCenter = Math.atan2(safeZone.cy - p.y, safeZone.cx - p.x);
+    const len = p.r + 6;
+    ctx.lineTo(p.x + Math.cos(angleToCenter) * len, p.y + Math.sin(angleToCenter) * len);
+    ctx.strokeStyle = '#e5e7eb';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  }
+
+  function drawHPBars() {
+    const barWidth = 180;
+    const barHeight = 10;
+
+    // игрок 1
+    ctx.fillStyle = '#111827';
+    ctx.fillRect(20, 20, barWidth, barHeight);
+    ctx.fillStyle = '#22c55e';
+    const w1 = (player1.hp / player1.maxHp) * barWidth;
+    ctx.fillRect(20, 20, Math.max(0, w1), barHeight);
+    ctx.fillStyle = '#e5e7eb';
+    ctx.font = '10px system-ui';
+    ctx.fillText('Игрок 1 (атакующий)', 20, 16);
+
+    // игрок 2
+    ctx.fillStyle = '#111827';
+    ctx.fillRect(battleCanvas.width - 20 - barWidth, 20, barWidth, barHeight);
+    ctx.fillStyle = '#f97316';
+    const w2 = (player2.hp / player2.maxHp) * barWidth;
+    ctx.fillRect(battleCanvas.width - 20 - barWidth, 20, Math.max(0, w2), barHeight);
+    ctx.fillStyle = '#e5e7eb';
+    ctx.fillText('Игрок 2 (защитник)', battleCanvas.width - 20 - barWidth, 16);
+  }
+})();
 </script>
 </body>
 </html>
+
